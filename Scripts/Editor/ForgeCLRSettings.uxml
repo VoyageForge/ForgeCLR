@@ -1,0 +1,58 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/ForgeCLR/Scripts/Editor/ForgeCLRSettings.uss?fileID=7433441132597879392&amp;guid=4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a&amp;type=3#ForgeCLRSettings" />
+    <ui:ScrollView name="settings-scroll-view" view-data-key="ForgeCLRSettingsScrollView">
+        <ui:VisualElement name="container">
+            <ui:VisualElement name="aot-section" class="section">
+                <ui:Label name="aot-header" text="AOT 设置" class="section-header" />
+                <ui:VisualElement name="aot-content" class="content-box">
+                    <uie:PropertyField binding-path="aotOutputPath" label="AOT 输出路径" />
+                    <uie:PropertyField binding-path="aotGenericReferencePath" label="AOT 泛型引用路径" />
+                    <uie:PropertyField binding-path="aotPatchedAssemblies" label="AOT 补充元数据程序集" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="hotupdate-section" class="section">
+                <ui:Label name="hotupdate-header" text="热更新设置" class="section-header" />
+                <ui:VisualElement name="hotupdate-content" class="content-box">
+                    <uie:PropertyField binding-path="hotUpdateOutputPath" label="热更新输出路径" />
+                    <uie:PropertyField binding-path="hotUpdateCopyPath" label="热更新拷贝路径（.bytes 格式）" />
+                    <uie:PropertyField binding-path="hotUpdateAssemblies" label="热更新程序集" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="build-section" class="section">
+                <ui:Label name="build-header" text="构建设置" class="section-header" />
+                <ui:VisualElement name="build-content" class="content-box">
+                    <uie:PropertyField binding-path="enableHotUpdate" label="启用热更新" />
+                    <uie:PropertyField binding-path="enableAOT" label="启用 AOT" />
+                    <uie:PropertyField binding-path="buildTarget" label="构建目标平台" />
+                    <uie:PropertyField binding-path="autoGenerateAOTReference" label="自动生成 AOT 引用" />
+                    <uie:PropertyField binding-path="autoCopyHotUpdateDlls" label="自动拷贝热更新 DLL" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="advanced-section" class="section">
+                <ui:Label name="advanced-header" text="高级设置" class="section-header" />
+                <ui:VisualElement name="advanced-content" class="content-box">
+                    <uie:PropertyField binding-path="maxGenericReferenceIteration" label="最大泛型引用迭代次数" />
+                    <uie:PropertyField binding-path="maxMethodBridgeIteration" label="最大方法桥接迭代次数" />
+                    <uie:PropertyField binding-path="debugMode" label="调试模式" />
+                    <uie:PropertyField binding-path="debugLogLevel" label="调试日志级别" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="actions-section" class="section">
+                <ui:Label name="actions-header" text="操作" class="section-header" />
+                <ui:VisualElement name="actions-content" class="content-box">
+                    <ui:Label name="paths-label" text="当前路径：" class="paths-label" />
+                    <ui:Label name="aot-output-path" class="path-label" />
+                    <ui:Label name="hotupdate-output-path" class="path-label" />
+                    <ui:Label name="hotupdate-copy-path" class="path-label" />
+                    <ui:Label name="aot-generic-reference-path" class="path-label" />
+                    <ui:VisualElement name="button-container" class="button-container">
+                        <ui:Button name="open-aot-button" text="打开 AOT 输出文件夹" class="action-button" />
+                        <ui:Button name="open-hotupdate-button" text="打开热更新输出文件夹" class="action-button" />
+                        <ui:Button name="open-copy-button" text="打开热更新拷贝文件夹" class="action-button" />
+                        <ui:Button name="validate-button" text="验证配置" class="validate-button" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:ScrollView>
+</ui:UXML>

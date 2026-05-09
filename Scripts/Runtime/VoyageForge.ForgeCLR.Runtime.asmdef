@@ -1,0 +1,20 @@
+{
+    "name": "VoyageForge.ForgeCLR.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "GUID:1278a46ce459c5a46b4eaeda148684ef",
+        "GUID:057b9764972b6ce4fa25125cdb2ad34f",
+        "GUID:e34a5702dd353724aa315fb8011f08c3",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:13ba8ce62aa80c74598530029cb2d649"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
