@@ -16,12 +16,12 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <summary>
         /// 默认运行时配置资产目录。
         /// </summary>
-        private const string RuntimeSettingsDirectory = "Assets/ForgeCLR/Resources";
+        private const string RuntimeSettingsDirectory = "Assets/Resources/VoyageForge/Config";
 
         /// <summary>
         /// 默认运行时配置资产路径。
         /// </summary>
-        private const string RuntimeSettingsPath = "Assets/ForgeCLR/Resources/ForgeCLRRuntimeSettings.asset";
+        private const string RuntimeSettingsPath = RuntimeSettingsDirectory + "/ForgeCLRRuntimeSettings.asset";
 
         /// <summary>
         /// 获取 Project Settings 中配置的运行时配置资产；未配置时创建默认资产并写回配置。
@@ -33,11 +33,14 @@ namespace VoyageForge.ForgeCLR.Editor
             if (editorSettings.RuntimeSettings != null)
                 return editorSettings.RuntimeSettings;
 
-            var runtimeSettings = AssetDatabase.LoadAssetAtPath<ForgeCLRRuntimeSettings>(RuntimeSettingsPath);
+            var runtimeSettings = FindRuntimeSettingsAsset();
             if (runtimeSettings == null)
             {
                 if (Directory.Exists(RuntimeSettingsDirectory) == false)
+                {
                     Directory.CreateDirectory(RuntimeSettingsDirectory);
+                    AssetDatabase.Refresh();
+                }
 
                 runtimeSettings = ScriptableObject.CreateInstance<ForgeCLRRuntimeSettings>();
                 AssetDatabase.CreateAsset(runtimeSettings, RuntimeSettingsPath);
@@ -47,6 +50,24 @@ namespace VoyageForge.ForgeCLR.Editor
 
             editorSettings.SetRuntimeSettings(runtimeSettings);
             return runtimeSettings;
+        }
+
+        /// <summary>
+        /// 全项目搜索已有 ForgeCLR 运行时配置资产。
+        /// </summary>
+        /// <returns>找到的运行时配置资产；不存在时返回 null。</returns>
+        private static ForgeCLRRuntimeSettings FindRuntimeSettingsAsset()
+        {
+            var runtimeSettings = AssetDatabase.LoadAssetAtPath<ForgeCLRRuntimeSettings>(RuntimeSettingsPath);
+            if (runtimeSettings != null)
+                return runtimeSettings;
+
+            string[] guids = AssetDatabase.FindAssets($"t:{nameof(ForgeCLRRuntimeSettings)}");
+            if (guids == null || guids.Length == 0)
+                return null;
+
+            string assetPath = AssetDatabase.GUIDToAssetPath(guids[0]);
+            return AssetDatabase.LoadAssetAtPath<ForgeCLRRuntimeSettings>(assetPath);
         }
 
         /// <summary>

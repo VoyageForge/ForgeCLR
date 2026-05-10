@@ -35,6 +35,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
             var gamePackage = YooAssets.GetPackage(runtimeSettings.PackageName);
             YooAssets.SetDefaultPackage(gamePackage);
+            ForgeCLRSceneLoader.SetDefaultPackage(gamePackage);
 
             await HotUpdateBootstrap.StartAsync(
                 gamePackage,

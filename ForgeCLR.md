@@ -10,6 +10,7 @@ ForgeCLR 模板把 HybridCLR、YooAssets、UniTask 串成一条可复用的热�
 4. `HotUpdateBootstrap` 从 YooAssets 原生文件中加载 AOT 补充元数据 DLL。
 5. `HotUpdateBootstrap` 从 YooAssets 原生文件中加载热更新程序集 DLL。
 6. 反射调用热更新入口，默认入口是 `HotUpdate.HotUpdateEntry.Start()`。
+7. 默认热更新入口调用 `ForgeCLRSceneLoader.LoadStartupSceneAsync()`，按 `ForgeCLRRuntimeSettings` 加载第一个业务场景。
 
 DLL 文件计划打进 AB 包中，所以热更新 DLL 和 AOT 元数据 DLL 必须先拷贝到 `Assets` 下，再由 YooAssets Collector 收集。
 
@@ -22,8 +23,9 @@ DLL 文件计划打进 AB 包中，所以热更新 DLL 和 AOT 元数据 DLL 必
 ForgeCLR 只配置自己负责的内容：
 
 - `运行时配置 SO`：一键构建资源包时要自动填充的 `ForgeCLRRuntimeSettings`。
-- `热更新 DLL 拷贝目录`：热更新程序集 `.dll.bytes` 输出目录，默认 `Assets/HotUpdateDll/HotUpdateDll`。
-- `AOT 元数据 DLL 拷贝目录`：AOT 补充元数据 `.dll.bytes` 输出目录，默认 `Assets/HotUpdateDll/MetadataDll`。
+- `DLL 拷贝根目录名`：只允许配置 `Assets` 下的中间目录名，默认 `HotUpdateDll`。最终路径固定为 `Assets/{目录名}/HotUpdateDll` 和 `Assets/{目录名}/MetadataDll`。
+- `启动后加载首场景`：热更新入口启动后是否自动加载第一个业务场景。
+- `启动场景地址`：优先作为 YooAssets 场景 Address 加载；没有资源包时会回退为 Unity Build Settings 中的场景名。
 
 YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、内置资源拷贝等配置仍然在 YooAssets 自己的窗口中维护：
 
@@ -34,7 +36,7 @@ YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、�
 
 `VoyageForge/ForgeCLR/快速设置`
 
-创建默认目录、保存 Project Settings 配置，并在未配置时创建 `Assets/ForgeCLR/Resources/ForgeCLRRuntimeSettings.asset` 后写入 Project Settings 的 `运行时配置 SO` 引用。
+创建默认目录、保存 Project Settings 配置，并在未配置时创建 `Assets/Resources/VoyageForge/Config/ForgeCLRRuntimeSettings.asset` 后写入 Project Settings 的 `运行时配置 SO` 引用。
 
 `ForgeCLRRuntimeSettings` 由 `Launcher` 引用，保存运行时启动需要的配置：
 
@@ -44,6 +46,19 @@ YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、�
 - AOT 元数据 DLL 地址列表
 - 热更新 DLL 地址列表
 - 热更新入口类型和方法
+- 是否启动后加载首场景
+- 首场景 YooAssets Address 或 Unity 场景名
+
+## 首场景加载
+
+模板默认不在 `FsmStartGame` 里写业务场景跳转，而是把首场景加载放到热更新入口之后：
+
+1. `Launcher` 只负责 YooAssets 补丁流程和 HybridCLR 热更新启动。
+2. `HotUpdate.HotUpdateEntry.Start()` 作为默认热更新入口，等待 `ForgeCLRSceneLoader.LoadStartupSceneAsync()` 完成。
+3. `ForgeCLRSceneLoader` 优先使用 `Launcher` 初始化并缓存的 YooAssets Package 加载 `启动场景地址`。
+4. 如果当前没有可用的 YooAssets Package，会使用 `SceneManager.LoadSceneAsync` 按普通场景名加载，便于早期模板调试。
+
+建议把首个业务场景放进 YooAssets Collector，并让 Address 和 `ForgeCLRRuntimeSettings` 中的 `启动场景地址` 保持一致。启动场景本身只保留 `Launcher` 和必要的加载 UI，业务对象放在首个业务场景中。
 
 ## HybridCLR 程序集边界
 

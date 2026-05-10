@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using YooAsset;
 
@@ -14,6 +15,11 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// 默认资源加载名称，放在 Resources 目录下时可以被 Launcher 自动加载。
         /// </summary>
         public const string AssetName = "ForgeCLRRuntimeSettings";
+
+        /// <summary>
+        /// 默认配置在 Resources 下的子路径。
+        /// </summary>
+        private const string DefaultResourcesPath = "VoyageForge/Config/" + AssetName;
 
         /// <summary>
         /// YooAssets 资源包名称，需要和 YooAssets Collector 中的 PackageName 保持一致。
@@ -61,6 +67,17 @@ namespace VoyageForge.ForgeCLR.Runtime
         [SerializeField] private string hotUpdateEntryMethodName = "Start";
 
         /// <summary>
+        /// 是否在热更新入口启动后自动加载第一个业务场景。
+        /// </summary>
+        [Header("Startup Scene")]
+        [SerializeField] private bool loadStartupScene = true;
+
+        /// <summary>
+        /// 第一个业务场景的 YooAssets 地址；没有打入资源包时也可以填写 Build Settings 中的场景名。
+        /// </summary>
+        [SerializeField] private string startupSceneLocation = "Main";
+
+        /// <summary>
         /// YooAssets 资源包名称。
         /// </summary>
         public string PackageName => packageName;
@@ -96,12 +113,35 @@ namespace VoyageForge.ForgeCLR.Runtime
         public string HotUpdateEntryMethodName => hotUpdateEntryMethodName;
 
         /// <summary>
+        /// 是否在热更新启动完成后加载第一个业务场景。
+        /// </summary>
+        public bool LoadStartupScene => loadStartupScene;
+
+        /// <summary>
+        /// 第一个业务场景的 YooAssets 地址或 Unity 场景名。
+        /// </summary>
+        public string StartupSceneLocation => startupSceneLocation;
+
+        /// <summary>
         /// 从 Resources 加载默认运行时配置；不存在时返回内存默认配置。
         /// </summary>
         /// <returns>运行时配置实例。</returns>
         public static ForgeCLRRuntimeSettings LoadDefault()
         {
-            var settings = Resources.Load<ForgeCLRRuntimeSettings>(AssetName);
+            var settings = Resources.Load<ForgeCLRRuntimeSettings>(DefaultResourcesPath);
+            if (settings != null)
+            {
+                return settings;
+            }
+
+            settings = Resources.Load<ForgeCLRRuntimeSettings>(AssetName);
+            if (settings != null)
+            {
+                return settings;
+            }
+
+            settings = Resources.LoadAll<ForgeCLRRuntimeSettings>(string.Empty)
+                .FirstOrDefault();
             return settings != null ? settings : CreateInstance<ForgeCLRRuntimeSettings>();
         }
     }

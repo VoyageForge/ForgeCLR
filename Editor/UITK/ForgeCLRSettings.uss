@@ -1,0 +1,145 @@
+.fclr-settings-root {
+    padding: 16px;
+    max-width: none;
+}
+
+.fclr-settings-scroll {
+    flex-grow: 1;
+}
+
+.fclr-page-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(241, 243, 244);
+    margin-bottom: 4px;
+}
+
+.fclr-summary-text {
+    color: rgb(201, 209, 217);
+    margin-bottom: 14px;
+}
+
+.fclr-section-card {
+    background-color: rgb(43, 47, 51);
+    border-color: rgb(63, 70, 77);
+    border-width: 1px;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.fclr-section-title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: rgb(241, 243, 244);
+    margin-bottom: 8px;
+}
+
+.fclr-settings-field {
+    margin-bottom: 8px;
+}
+
+.fclr-sub-section {
+    margin-top: 4px;
+}
+
+.fclr-startup-scene-container {
+    margin-top: 2px;
+}
+
+.fclr-path-title {
+    color: rgb(201, 209, 217);
+    -unity-font-style: bold;
+    margin-top: 4px;
+    margin-bottom: 3px;
+}
+
+.fclr-path-label {
+    color: rgb(170, 179, 186);
+    margin-bottom: 3px;
+}
+
+.fclr-button-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.fclr-primary-button {
+    min-width: 120px;
+    height: 28px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+.fclr-secondary-button {
+    min-width: 120px;
+    height: 28px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+.fclr-primary-button {
+    background-color: rgb(45, 106, 79);
+    border-color: rgb(64, 145, 108);
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+}
+
+.fclr-secondary-button {
+    background-color: rgb(58, 63, 68);
+    border-color: rgb(83, 92, 100);
+    color: rgb(241, 243, 244);
+}
+
+.fclr-validation-summary {
+    color: rgb(201, 209, 217);
+    margin-bottom: 8px;
+}
+
+.fclr-validation-container {
+    flex-direction: column;
+}
+
+.fclr-validation-card {
+    border-width: 1px;
+    border-radius: 5px;
+    padding: 9px;
+    margin-bottom: 8px;
+}
+
+.fclr-validation-card-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.fclr-validation-title {
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.fclr-validation-badge {
+    min-width: 52px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+
+.fclr-validation-message {
+    white-space: normal;
+}
+
+.fclr-validation-card-passed {
+    background-color: rgb(31, 57, 43);
+    border-color: rgb(64, 145, 108);
+}
+
+.fclr-validation-card-warning {
+    background-color: rgb(64, 51, 29);
+    border-color: rgb(184, 128, 43);
+}
+
+.fclr-validation-card-failed {
+    background-color: rgb(70, 36, 38);
+    border-color: rgb(189, 82, 82);
+}

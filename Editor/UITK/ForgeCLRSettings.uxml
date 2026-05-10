@@ -1,0 +1,38 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/ForgeCLR/Editor/UITK/ForgeCLRSettings.uss?fileID=7433441132597879392&amp;guid=4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a&amp;type=3#ForgeCLRSettings" />
+    <ui:ScrollView name="RootScrollView" class="fclr-settings-scroll">
+        <ui:VisualElement name="Root" class="fclr-settings-root" style="max-width: none;">
+            <ui:Label text="ForgeCLR" class="fclr-page-title" />
+            <ui:TextElement text="集中维护运行时配置 SO 和 DLL 拷贝目录，并提供常用构建操作入口。" class="fclr-summary-text" />
+            <ui:VisualElement class="fclr-section-card">
+                <ui:Label text="运行时配置" class="fclr-section-title" />
+                <uie:PropertyField binding-path="runtimeSettings" label="运行时配置 SO" class="fclr-settings-field" />
+                <ui:VisualElement class="fclr-sub-section">
+                    <ui:Label text="启动场景" class="fclr-path-title" />
+                    <ui:VisualElement name="StartupSceneFieldsContainer" class="fclr-startup-scene-container" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="fclr-section-card">
+                <ui:Label text="DLL 拷贝" class="fclr-section-title" />
+                <uie:PropertyField binding-path="dllCopyDirectoryName" label="DLL 拷贝根目录名" class="fclr-settings-field" />
+                <ui:Label text="最终路径" class="fclr-path-title" />
+                <ui:Label name="HotUpdateDllCopyPathLabel" class="fclr-path-label" />
+                <ui:Label name="MetadataDllCopyPathLabel" class="fclr-path-label" />
+            </ui:VisualElement>
+            <ui:VisualElement class="fclr-section-card">
+                <ui:Label text="操作" class="fclr-section-title" />
+                <ui:VisualElement class="fclr-button-row">
+                    <ui:Button name="ValidateButton" text="验证环境" class="fclr-secondary-button" />
+                    <ui:Button name="CopyDllButton" text="拷贝 DLL" class="fclr-secondary-button" />
+                    <ui:Button name="BuildResourcesButton" text="构建资源包" class="fclr-primary-button" />
+                    <ui:Button name="OpenBuildPanelButton" text="打开 Unity Build 面板" class="fclr-secondary-button" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="fclr-section-card">
+                <ui:Label text="环境检测" class="fclr-section-title" />
+                <ui:Label name="ValidationSummary" text="等待检测" class="fclr-validation-summary" />
+                <ui:VisualElement name="ValidationCardsContainer" class="fclr-validation-container" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:ScrollView>
+</ui:UXML>
