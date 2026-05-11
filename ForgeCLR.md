@@ -9,10 +9,9 @@ ForgeCLR 模板把 HybridCLR、YooAssets、UniTask 串成一条可复用的热�
 3. `PatchOperation` 初始化 YooAssets 包，更新版本和清单，下载远端资源并清理无用缓存。
 4. `HotUpdateBootstrap` 从 YooAssets 原生文件中加载 AOT 补充元数据 DLL。
 5. `HotUpdateBootstrap` 从 YooAssets 原生文件中加载热更新程序集 DLL。
-6. 反射调用热更新入口，默认入口是 `HotUpdate.HotUpdateEntry.Start()`。
-7. 默认热更新入口调用 `ForgeCLRSceneLoader.LoadStartupSceneAsync()`，按 `ForgeCLRRuntimeSettings` 加载第一个业务场景。
+6. `Launcher` 调用 `ForgeCLRSceneLoader.LoadStartupSceneAsync()`，按 `ForgeCLRRuntimeSettings` 加载第一个业务场景。
 
-DLL 文件计划打进 AB 包中，所以热更新 DLL 和 AOT 元数据 DLL 必须先拷贝到 `Assets` 下，再由 YooAssets Collector 收集。
+DLL 文件计划打进 AB 包中，所以热更新 DLL 和 AOT 元数据 DLL 必须先拷贝到 `Assets` 下，再由 YooAssets Collector 收集。运行时配置写入的是完整资源路径，例如 `Assets/HotUpdateDll/HotUpdateDll/HotUpdateAssembly.dll.bytes`，不依赖 YooAssets 是否开启 Addressable，也不依赖 Support Extensionless。
 
 ## Project Settings
 
@@ -23,11 +22,19 @@ DLL 文件计划打进 AB 包中，所以热更新 DLL 和 AOT 元数据 DLL 必
 ForgeCLR 只配置自己负责的内容：
 
 - `运行时配置 SO`：一键构建资源包时要自动填充的 `ForgeCLRRuntimeSettings`。
+- `YooAssets 包`：包名来自项目中的 YooAssets Collector 配置文件，通过下拉框选择。
 - `DLL 拷贝根目录名`：只允许配置 `Assets` 下的中间目录名，默认 `HotUpdateDll`。最终路径固定为 `Assets/{目录名}/HotUpdateDll` 和 `Assets/{目录名}/MetadataDll`。
-- `启动后加载首场景`：热更新入口启动后是否自动加载第一个业务场景。
-- `启动场景地址`：优先作为 YooAssets 场景 Address 加载；没有资源包时会回退为 Unity Build Settings 中的场景名。
+- `启动后加载首场景`：热更新程序集加载完成后是否自动加载第一个业务场景。
+- `启动场景地址`：通过下拉框选择项目中的 `.unity` 场景资源，并保存完整资源路径。
 
-YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、内置资源拷贝等配置仍然在 YooAssets 自己的窗口中维护：
+`运行时配置 SO` 引用由 ForgeCLR 快速设置自动创建和维护，在面板中是只读字段，避免手动替换导致一键构建填错配置。
+
+YooAssets 需要两个配置文件，ForgeCLR 会在快速设置和环境检测中检查它们：
+
+- `Assets/Resources/YooAssetSettings.asset`
+- `Assets/Resources/AssetBundleCollectorSetting.asset`
+
+`AssetBundleCollectorSetting` 必须放在 `Resources` 下，避免 YooAssets 编辑器和运行时加载到不同配置。YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、内置资源拷贝等配置仍然在 YooAssets 自己的窗口中维护：
 
 - `YooAsset/AssetBundle Collector`
 - `YooAsset/AssetBundle Builder`
@@ -38,27 +45,34 @@ YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、�
 
 创建默认目录、保存 Project Settings 配置，并在未配置时创建 `Assets/Resources/VoyageForge/Config/ForgeCLRRuntimeSettings.asset` 后写入 Project Settings 的 `运行时配置 SO` 引用。
 
+快速设置还会创建默认 `Assets/Scenes/Main.unity`，并补齐 YooAssets Collector 中的 ForgeCLR 分组：
+
+- 热更新 DLL 目录：`Assets/{目录名}/HotUpdateDll`
+- AOT 元数据 DLL 目录：`Assets/{目录名}/MetadataDll`
+- 首场景：`Assets/Scenes/Main.unity`
+
+如果项目中没有 YooAssetSettings 或 YooAssets Collector 配置，快速设置会创建默认配置到 `Assets/Resources`。如果 Collector 配置中已经有 Package，ForgeCLR 会优先使用配置中的包名；只有配置中没有 Package 时才创建 `DefaultPackage`。
+
 `ForgeCLRRuntimeSettings` 由 `Launcher` 引用，保存运行时启动需要的配置：
 
 - YooAssets 资源包名称
 - YooAssets PlayMode
 - 是否加载 AOT 补充元数据
-- AOT 元数据 DLL 地址列表
-- 热更新 DLL 地址列表
-- 热更新入口类型和方法
+- AOT 元数据 DLL 完整资源路径列表
+- 热更新 DLL 完整资源路径列表
 - 是否启动后加载首场景
-- 首场景 YooAssets Address 或 Unity 场景名
+- 首场景完整资源路径
 
 ## 首场景加载
 
-模板默认不在 `FsmStartGame` 里写业务场景跳转，而是把首场景加载放到热更新入口之后：
+模板默认不在 `FsmStartGame` 里写业务场景跳转，而是在热更新程序集加载完成后由 `Launcher` 统一进入首个业务场景：
 
-1. `Launcher` 只负责 YooAssets 补丁流程和 HybridCLR 热更新启动。
-2. `HotUpdate.HotUpdateEntry.Start()` 作为默认热更新入口，等待 `ForgeCLRSceneLoader.LoadStartupSceneAsync()` 完成。
-3. `ForgeCLRSceneLoader` 优先使用 `Launcher` 初始化并缓存的 YooAssets Package 加载 `启动场景地址`。
-4. 如果当前没有可用的 YooAssets Package，会使用 `SceneManager.LoadSceneAsync` 按普通场景名加载，便于早期模板调试。
+1. `Launcher` 负责 YooAssets 补丁流程、HybridCLR 热更新程序集加载和首场景加载。
+2. `HotUpdateBootstrap` 只加载 AOT 补充元数据和热更新程序集，不再反射调用固定热更新入口。
+3. `ForgeCLRSceneLoader` 优先使用 `Launcher` 初始化并缓存的 YooAssets Package 按完整资源路径加载 `启动场景地址`。
+4. 如果当前没有可用的 YooAssets Package，会使用 `SceneManager.LoadSceneAsync` 回退加载，便于早期模板调试。
 
-建议把首个业务场景放进 YooAssets Collector，并让 Address 和 `ForgeCLRRuntimeSettings` 中的 `启动场景地址` 保持一致。启动场景本身只保留 `Launcher` 和必要的加载 UI，业务对象放在首个业务场景中。
+建议让启动场景本身只保留 `Launcher` 和必要的加载 UI，业务对象放在首个业务场景中。首个业务场景应由 YooAssets Collector 收集，`ForgeCLRRuntimeSettings` 中保存的是该场景的完整资源路径。
 
 ## HybridCLR 程序集边界
 
@@ -82,7 +96,7 @@ HybridCLR 的“程序集集合”分成两类理解：
 1. 调用 `HybridCLR/Generate/All` 对应 API。
 2. 编译当前平台热更新 DLL。
 3. 拷贝热更新 DLL 和 AOT 元数据 DLL 到 Project Settings 配置目录。
-4. 自动填充 Project Settings 引用的 `ForgeCLRRuntimeSettings` 中的 PackageName、热更新 DLL 列表和 AOT 元数据 DLL 列表。
+4. 自动填充 Project Settings 引用的 `ForgeCLRRuntimeSettings` 中的 PackageName、热更新 DLL 完整路径列表、AOT 元数据 DLL 完整路径列表和首场景路径。
 5. 读取 YooAssets Collector 中配置的 Package。
 6. 读取 YooAssets Builder 中每个 Package 的构建管线和构建参数。
 7. 调用 YooAssets 构建 AB。
@@ -94,14 +108,10 @@ HybridCLR 的“程序集集合”分成两类理解：
 ## 使用建议
 
 1. 先配置 HybridCLR 热更新程序集。
-2. 在 YooAssets Collector 中收集 `Assets/HotUpdateDll/HotUpdateDll` 和 `Assets/HotUpdateDll/MetadataDll`。
+2. 运行 `VoyageForge/ForgeCLR/快速设置`，自动创建默认场景并补齐 YooAssets Collector。
 3. 运行 `VoyageForge/ForgeCLR/构建资源包`。
 4. 资源包验证通过后，再打开 Unity Build Settings 面板构建软件包。
 
 ## 待改进
-1. 避免 没有开启 enable addressable导致的 资源无法加载问题，统一写全路径
-2. 避免 support Extensionless 问题 ，导致的加载问题
-3. 禁止手动 填写 程序集名称，统一通过 hclr 获取程序集名称
-4. 剔除 hotUpdateEntryTypeName 配置项，以及hotUpdateEntryMethodName
-5. 启动场景 改为 使用下拉框选择，而不是手动填写
-6. 更新一键配置， 自动创建Main 场景，自动创建 yooassets 配置,自动填入dll和scene 资源路径
+1. 构建软件包前增加更完整的运行前检查，例如首场景是否已经被 YooAssets 收集。
+2. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。

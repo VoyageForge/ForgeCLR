@@ -15,7 +15,7 @@ namespace VoyageForge.ForgeCLR.Runtime
         [SerializeField] private ForgeCLRRuntimeSettings settings;
 
         /// <summary>
-        /// Unity 启动回调，执行资源补丁并启动热更新入口。
+        /// Unity 启动回调，执行资源补丁、加载热更新程序集并进入首个业务场景。
         /// </summary>
         private async UniTaskVoid Start()
         {
@@ -41,11 +41,9 @@ namespace VoyageForge.ForgeCLR.Runtime
                 gamePackage,
                 runtimeSettings.LoadAotMetadata,
                 runtimeSettings.AotMetadataDllLocations,
-                runtimeSettings.HotUpdateDllLocations,
-                runtimeSettings.HotUpdateEntryTypeName,
-                runtimeSettings.HotUpdateEntryMethodName);
+                runtimeSettings.HotUpdateDllLocations);
 
-            await YooAssets.LoadSceneAsync("Assets/Scenes/Main");
+            await ForgeCLRSceneLoader.LoadStartupSceneAsync(gamePackage, runtimeSettings);
         }
     }
 }

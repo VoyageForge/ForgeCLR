@@ -47,6 +47,10 @@
     margin-top: 2px;
 }
 
+.fclr-package-container {
+    margin-top: 2px;
+}
+
 .fclr-path-title {
     color: rgb(201, 209, 217);
     -unity-font-style: bold;
@@ -123,6 +127,20 @@
     min-width: 52px;
     -unity-text-align: middle-center;
     -unity-font-style: bold;
+}
+
+.fclr-validation-actions {
+    flex-direction: row;
+    align-items: center;
+}
+
+.fclr-repair-button {
+    min-width: 54px;
+    height: 24px;
+    margin-left: 8px;
+    background-color: rgb(58, 63, 68);
+    border-color: rgb(83, 92, 100);
+    color: rgb(241, 243, 244);
 }
 
 .fclr-validation-message {

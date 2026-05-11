@@ -6,7 +6,11 @@
             <ui:TextElement text="集中维护运行时配置 SO 和 DLL 拷贝目录，并提供常用构建操作入口。" class="fclr-summary-text" />
             <ui:VisualElement class="fclr-section-card">
                 <ui:Label text="运行时配置" class="fclr-section-title" />
-                <uie:PropertyField binding-path="runtimeSettings" label="运行时配置 SO" class="fclr-settings-field" />
+                <uie:PropertyField name="RuntimeSettingsField" binding-path="runtimeSettings" label="运行时配置 SO" class="fclr-settings-field" />
+                <ui:VisualElement class="fclr-sub-section">
+                    <ui:Label text="YooAssets 包" class="fclr-path-title" />
+                    <ui:VisualElement name="PackageFieldsContainer" class="fclr-package-container" />
+                </ui:VisualElement>
                 <ui:VisualElement class="fclr-sub-section">
                     <ui:Label text="启动场景" class="fclr-path-title" />
                     <ui:VisualElement name="StartupSceneFieldsContainer" class="fclr-startup-scene-container" />

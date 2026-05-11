@@ -1,3 +1,4 @@
+using System.IO;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -6,12 +7,12 @@ using YooAsset;
 namespace VoyageForge.ForgeCLR.Runtime
 {
     /// <summary>
-    /// ForgeCLR 场景加载工具，负责在热更新启动完成后进入第一个业务场景。
+    /// ForgeCLR 场景加载工具，负责在热更新程序集加载完成后进入第一个业务场景。
     /// </summary>
     public static class ForgeCLRSceneLoader
     {
         /// <summary>
-        /// Launcher 初始化完成后缓存的默认资源包，供热更新入口无参调用时使用。
+        /// Launcher 初始化完成后缓存的默认资源包，供没有显式传入资源包的调用使用。
         /// </summary>
         private static ResourcePackage defaultPackage;
 
@@ -78,6 +79,11 @@ namespace VoyageForge.ForgeCLR.Runtime
             }
 
             var operation = SceneManager.LoadSceneAsync(sceneLocation, sceneMode);
+            if (operation == null && sceneLocation.EndsWith(".unity", System.StringComparison.OrdinalIgnoreCase))
+            {
+                operation = SceneManager.LoadSceneAsync(Path.GetFileNameWithoutExtension(sceneLocation), sceneMode);
+            }
+
             if (operation == null)
             {
                 Debug.LogWarning($"[ForgeCLR] Unity 启动场景加载失败：{sceneLocation}");

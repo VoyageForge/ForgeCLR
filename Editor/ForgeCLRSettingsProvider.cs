@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -98,8 +100,9 @@ namespace VoyageForge.ForgeCLR.Editor
 
             settingsObject.Update();
             rootElement.Bind(settingsObject);
+            MakeRuntimeSettingsReferenceReadOnly(rootElement);
             UpdateResolvedPathLabels(rootElement);
-            BindStartupSceneFields(rootElement);
+            BindRuntimeSettingsFields(rootElement);
 
             RegisterSaveCallbacks(rootElement);
             BindActionButtons(rootElement);
@@ -107,32 +110,47 @@ namespace VoyageForge.ForgeCLR.Editor
         }
 
         /// <summary>
-        /// 绑定运行时配置中的首场景字段，方便在 ForgeCLR 面板中直接修改启动场景。
+        /// 将运行时配置资产引用设为只读，引用由快速设置自动创建和维护。
         /// </summary>
         /// <param name="rootElement">根元素。</param>
-        private void BindStartupSceneFields(VisualElement rootElement)
+        private static void MakeRuntimeSettingsReferenceReadOnly(VisualElement rootElement)
         {
-            var container = rootElement.Q<VisualElement>("StartupSceneFieldsContainer");
-            if (container == null)
+            rootElement.Q<PropertyField>("RuntimeSettingsField")?.SetEnabled(false);
+        }
+
+        /// <summary>
+        /// 绑定运行时配置字段，方便在 ForgeCLR 面板中选择包名和首场景。
+        /// </summary>
+        /// <param name="rootElement">根元素。</param>
+        private void BindRuntimeSettingsFields(VisualElement rootElement)
+        {
+            var packageContainer = rootElement.Q<VisualElement>("PackageFieldsContainer");
+            var startupSceneContainer = rootElement.Q<VisualElement>("StartupSceneFieldsContainer");
+            packageContainer?.Clear();
+            startupSceneContainer?.Clear();
+
+            if (packageContainer == null && startupSceneContainer == null)
             {
                 return;
             }
 
-            container.Clear();
             runtimeSettingsObject?.Dispose();
             runtimeSettingsObject = null;
 
             var runtimeSettings = ForgeCLRSettings.instance.RuntimeSettings;
             if (runtimeSettings == null)
             {
-                container.Add(new HelpBox("未引用 ForgeCLRRuntimeSettings，无法编辑启动场景配置。", HelpBoxMessageType.Warning));
+                packageContainer?.Add(new HelpBox("未引用 ForgeCLRRuntimeSettings，无法选择 YooAssets 包。", HelpBoxMessageType.Warning));
+                startupSceneContainer?.Add(new HelpBox("未引用 ForgeCLRRuntimeSettings，无法编辑启动场景配置。", HelpBoxMessageType.Warning));
                 return;
             }
 
             runtimeSettingsObject = new SerializedObject(runtimeSettings);
-            AddRuntimeSettingsField(container, "loadStartupScene", "启动后加载首场景");
-            AddRuntimeSettingsField(container, "startupSceneLocation", "启动场景地址");
-            container.Bind(runtimeSettingsObject);
+            AddPackageDropdown(packageContainer);
+            AddRuntimeSettingsField(startupSceneContainer, "loadStartupScene", "启动后加载首场景");
+            AddStartupSceneDropdown(startupSceneContainer);
+            packageContainer?.Bind(runtimeSettingsObject);
+            startupSceneContainer?.Bind(runtimeSettingsObject);
         }
 
         /// <summary>
@@ -143,6 +161,11 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <param name="label">显示标签。</param>
         private void AddRuntimeSettingsField(VisualElement container, string propertyName, string label)
         {
+            if (container == null)
+            {
+                return;
+            }
+
             var property = runtimeSettingsObject?.FindProperty(propertyName);
             if (property == null)
             {
@@ -153,6 +176,95 @@ namespace VoyageForge.ForgeCLR.Editor
             field.AddToClassList("fclr-settings-field");
             field.RegisterCallback<SerializedPropertyChangeEvent>(_ => SaveSettings());
             container.Add(field);
+        }
+
+        /// <summary>
+        /// 添加 YooAssets 包名下拉框，包名来自项目中的 YooAssets Collector 配置。
+        /// </summary>
+        /// <param name="container">字段容器。</param>
+        private void AddPackageDropdown(VisualElement container)
+        {
+            if (container == null)
+            {
+                return;
+            }
+
+            var property = runtimeSettingsObject?.FindProperty("packageName");
+            if (property == null)
+            {
+                return;
+            }
+
+            if (ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetCollectorSetting(out _) == false)
+            {
+                container.Add(new HelpBox("未找到 YooAssets Collector 配置，请先执行 ForgeCLR 快速设置或在 YooAssets 中创建配置。", HelpBoxMessageType.Warning));
+                return;
+            }
+
+            var choices = ForgeCLRRuntimeSettingsEditorUtility.GetYooAssetPackageNames().ToList();
+            if (choices.Count == 0)
+            {
+                container.Add(new HelpBox("YooAssets Collector 配置中没有 Package，请先执行 ForgeCLR 快速设置。", HelpBoxMessageType.Warning));
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(property.stringValue) == false && choices.Contains(property.stringValue) == false)
+            {
+                choices.Insert(0, property.stringValue);
+            }
+
+            var currentValue = choices.Contains(property.stringValue) ? property.stringValue : choices[0];
+            property.stringValue = currentValue;
+
+            var dropdown = new PopupField<string>("资源包名称", choices, currentValue);
+            dropdown.AddToClassList("fclr-settings-field");
+            dropdown.RegisterValueChangedCallback(evt =>
+            {
+                property.stringValue = evt.newValue;
+                SaveSettings();
+            });
+            container.Add(dropdown);
+        }
+
+        /// <summary>
+        /// 添加首场景下拉框，避免手动填写场景地址。
+        /// </summary>
+        /// <param name="container">字段容器。</param>
+        private void AddStartupSceneDropdown(VisualElement container)
+        {
+            if (container == null)
+            {
+                return;
+            }
+
+            var property = runtimeSettingsObject?.FindProperty("startupSceneLocation");
+            if (property == null)
+            {
+                return;
+            }
+
+            var choices = ForgeCLRRuntimeSettingsEditorUtility.GetAvailableStartupSceneLocations().ToList();
+            if (choices.Count == 0)
+            {
+                choices.Add(ForgeCLRRuntimeSettingsEditorUtility.DefaultStartupScenePath);
+            }
+
+            if (string.IsNullOrWhiteSpace(property.stringValue) == false && choices.Contains(property.stringValue) == false)
+            {
+                choices.Insert(0, property.stringValue);
+            }
+
+            var currentValue = choices.Contains(property.stringValue) ? property.stringValue : choices[0];
+            property.stringValue = currentValue;
+
+            var dropdown = new PopupField<string>("启动场景地址", choices, currentValue);
+            dropdown.AddToClassList("fclr-settings-field");
+            dropdown.RegisterValueChangedCallback(evt =>
+            {
+                property.stringValue = evt.newValue;
+                SaveSettings();
+            });
+            container.Add(dropdown);
         }
 
         /// <summary>
@@ -169,7 +281,7 @@ namespace VoyageForge.ForgeCLR.Editor
                     UpdateResolvedPathLabels(rootElement);
                     if (field.bindingPath == "runtimeSettings")
                     {
-                        rootElement.schedule.Execute(() => BindStartupSceneFields(rootElement));
+                        rootElement.schedule.Execute(() => BindRuntimeSettingsFields(rootElement));
                     }
 
                     RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
@@ -219,16 +331,17 @@ namespace VoyageForge.ForgeCLR.Editor
             container.Clear();
             foreach (var item in report.Items)
             {
-                container.Add(CreateValidationCard(item));
+                container.Add(CreateValidationCard(rootElement, item));
             }
         }
 
         /// <summary>
         /// 创建单张环境检测卡片。
         /// </summary>
+        /// <param name="rootElement">根元素，用于修复后刷新报告。</param>
         /// <param name="item">检测项。</param>
         /// <returns>检测卡片元素。</returns>
-        private static VisualElement CreateValidationCard(ForgeCLRValidationItem item)
+        private static VisualElement CreateValidationCard(VisualElement rootElement, ForgeCLRValidationItem item)
         {
             var card = new VisualElement();
             card.AddToClassList("fclr-validation-card");
@@ -244,7 +357,23 @@ namespace VoyageForge.ForgeCLR.Editor
             badge.AddToClassList("fclr-validation-badge");
 
             header.Add(title);
-            header.Add(badge);
+
+            var actions = new VisualElement();
+            actions.AddToClassList("fclr-validation-actions");
+            actions.Add(badge);
+
+            if (item.Status != ForgeCLRValidationStatus.Passed &&
+                ForgeCLRQuickSetup.CanRepairValidationItem(item.Title))
+            {
+                var repairButton = new Button(() => RepairValidationItem(rootElement, item.Title))
+                {
+                    text = "修复"
+                };
+                repairButton.AddToClassList("fclr-repair-button");
+                actions.Add(repairButton);
+            }
+
+            header.Add(actions);
 
             var message = new TextElement { text = item.Message };
             message.AddToClassList("fclr-validation-message");
@@ -252,6 +381,25 @@ namespace VoyageForge.ForgeCLR.Editor
             card.Add(header);
             card.Add(message);
             return card;
+        }
+
+        /// <summary>
+        /// 执行单项环境修复并刷新检测卡片。
+        /// </summary>
+        /// <param name="rootElement">根元素。</param>
+        /// <param name="title">检测项标题。</param>
+        private static void RepairValidationItem(VisualElement rootElement, string title)
+        {
+            try
+            {
+                ForgeCLRQuickSetup.TryRepairValidationItem(title);
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogError($"[ForgeCLR] 修复环境检测项失败：{title}\n{exception}");
+            }
+
+            RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
         }
 
         /// <summary>

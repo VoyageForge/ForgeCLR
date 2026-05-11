@@ -24,6 +24,31 @@ namespace VoyageForge.ForgeCLR.Editor
         private const string RuntimeSettingsPath = RuntimeSettingsDirectory + "/ForgeCLRRuntimeSettings.asset";
 
         /// <summary>
+        /// 模板默认首场景路径。
+        /// </summary>
+        public const string DefaultStartupScenePath = "Assets/Scenes/Main.unity";
+
+        /// <summary>
+        /// 模板默认 YooAssets 资源包名称。
+        /// </summary>
+        public const string DefaultPackageName = "DefaultPackage";
+
+        /// <summary>
+        /// 默认 YooAssets Collector 配置资产路径。
+        /// </summary>
+        private const string YooAssetCollectorSettingPath = "Assets/Resources/AssetBundleCollectorSetting.asset";
+
+        /// <summary>
+        /// 默认 YooAssets Settings 配置资产路径。
+        /// </summary>
+        private const string YooAssetSettingsPath = "Assets/Resources/YooAssetSettings.asset";
+
+        /// <summary>
+        /// YooAssets Settings 类型完整名称。
+        /// </summary>
+        private const string YooAssetSettingsTypeName = "YooAsset.YooAssetSettings, YooAsset";
+
+        /// <summary>
         /// 获取 Project Settings 中配置的运行时配置资产；未配置时创建默认资产并写回配置。
         /// </summary>
         /// <returns>运行时配置资产。</returns>
@@ -74,7 +99,9 @@ namespace VoyageForge.ForgeCLR.Editor
         /// 从当前项目配置和 DLL 拷贝结果自动填充运行时配置资产。
         /// </summary>
         /// <returns>被填充的运行时配置资产。</returns>
-        public static ForgeCLRRuntimeSettings AutoFillRuntimeSettings()
+        public static ForgeCLRRuntimeSettings AutoFillRuntimeSettings(
+            CopyHotUpdateDllToFolder.CopyResult copyResult = null,
+            string startupSceneLocation = null)
         {
             var runtimeSettings = EnsureRuntimeSettingsAsset();
             var editorSettings = ForgeCLRSettings.instance;
@@ -85,11 +112,14 @@ namespace VoyageForge.ForgeCLR.Editor
 
             FillStringArray(
                 serializedObject.FindProperty("hotUpdateDllLocations"),
-                CollectDllLocations(editorSettings.HotUpdateDllCopyDirectory));
+                CollectDllLocations(editorSettings.HotUpdateDllCopyDirectory, copyResult));
 
             FillStringArray(
                 serializedObject.FindProperty("aotMetadataDllLocations"),
-                CollectDllLocations(editorSettings.MetadataDllCopyDirectory));
+                CollectDllLocations(editorSettings.MetadataDllCopyDirectory, copyResult));
+
+            var startupSceneProperty = serializedObject.FindProperty("startupSceneLocation");
+            startupSceneProperty.stringValue = ResolveStartupSceneLocation(startupSceneLocation ?? startupSceneProperty.stringValue);
 
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(runtimeSettings);
@@ -106,39 +136,205 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <returns>推断后的资源包名称。</returns>
         private static string ResolvePackageName(string currentPackageName)
         {
-            var packages = AssetBundleCollectorSettingData.Setting?.Packages;
-            if (packages == null || packages.Count == 0)
-                return currentPackageName;
+            var packageNames = GetYooAssetPackageNames();
+            if (packageNames.Length == 0)
+            {
+                return string.IsNullOrWhiteSpace(currentPackageName) ? DefaultPackageName : currentPackageName;
+            }
 
             if (string.IsNullOrWhiteSpace(currentPackageName) == false &&
-                packages.Any(package => package.PackageName == currentPackageName))
+                packageNames.Contains(currentPackageName))
             {
                 return currentPackageName;
             }
 
-            var firstPackageName = packages.FirstOrDefault(package => string.IsNullOrWhiteSpace(package.PackageName) == false)?.PackageName;
-            return string.IsNullOrWhiteSpace(firstPackageName) ? currentPackageName : firstPackageName;
+            return packageNames[0];
+        }
+
+        /// <summary>
+        /// 从项目中查找 YooAssets Collector 配置资产。
+        /// </summary>
+        /// <param name="setting">找到的配置资产。</param>
+        /// <returns>找到配置资产时返回 true。</returns>
+        public static bool TryGetYooAssetCollectorSetting(out AssetBundleCollectorSetting setting)
+        {
+            setting = AssetDatabase.LoadAssetAtPath<AssetBundleCollectorSetting>(YooAssetCollectorSettingPath);
+            return setting != null;
+        }
+
+        /// <summary>
+        /// 确保项目中存在 YooAssets Collector 配置资产；一键配置会调用该方法创建默认资产。
+        /// </summary>
+        /// <returns>YooAssets Collector 配置资产。</returns>
+        public static AssetBundleCollectorSetting EnsureYooAssetCollectorSetting()
+        {
+            if (TryGetYooAssetCollectorSetting(out var setting))
+            {
+                return setting;
+            }
+
+            EnsureResourcesDirectory();
+            setting = ScriptableObject.CreateInstance<AssetBundleCollectorSetting>();
+            AssetDatabase.CreateAsset(setting, YooAssetCollectorSettingPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log($"[ForgeCLR] 已创建 YooAssets Collector 配置：{YooAssetCollectorSettingPath}");
+            return setting;
+        }
+
+        /// <summary>
+        /// 从项目中查找 YooAssetSettings 配置资产。
+        /// </summary>
+        /// <param name="setting">找到的配置资产。</param>
+        /// <returns>找到配置资产时返回 true。</returns>
+        public static bool TryGetYooAssetSettings(out ScriptableObject setting)
+        {
+            setting = AssetDatabase.LoadAssetAtPath<ScriptableObject>(YooAssetSettingsPath);
+            return setting != null && setting.GetType().FullName == "YooAsset.YooAssetSettings";
+        }
+
+        /// <summary>
+        /// 确保项目中存在 YooAssetSettings 配置资产；资源运行时会从 Resources 中加载该配置。
+        /// </summary>
+        /// <returns>YooAssetSettings 配置资产。</returns>
+        public static ScriptableObject EnsureYooAssetSettings()
+        {
+            if (TryGetYooAssetSettings(out var setting))
+            {
+                return setting;
+            }
+
+            var settingsType = Type.GetType(YooAssetSettingsTypeName);
+            if (settingsType == null)
+            {
+                throw new InvalidOperationException("未找到 YooAsset.YooAssetSettings 类型，请确认 YooAssets 已安装。");
+            }
+
+            EnsureResourcesDirectory();
+            setting = ScriptableObject.CreateInstance(settingsType);
+            AssetDatabase.CreateAsset(setting, YooAssetSettingsPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log($"[ForgeCLR] 已创建 YooAssetSettings 配置：{YooAssetSettingsPath}");
+            return setting;
+        }
+
+        /// <summary>
+        /// 从 YooAssets Collector 配置中读取所有 Package 名称。
+        /// </summary>
+        /// <returns>Package 名称集合。</returns>
+        public static string[] GetYooAssetPackageNames()
+        {
+            if (TryGetYooAssetCollectorSetting(out var setting) == false)
+            {
+                return Array.Empty<string>();
+            }
+
+            var packages = setting.Packages;
+            if (packages == null || packages.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            return packages
+                .Select(package => package.PackageName)
+                .Where(packageName => string.IsNullOrWhiteSpace(packageName) == false)
+                .Distinct()
+                .ToArray();
         }
 
         /// <summary>
         /// 扫描 DLL 拷贝目录中的 .dll.bytes 文件，并转换为 YooAssets 加载地址。
         /// </summary>
         /// <param name="assetDirectory">Assets 下的 DLL 拷贝目录。</param>
+        /// <param name="copyResult">本次 DLL 拷贝结果；存在时优先使用本次拷贝出的资源路径。</param>
         /// <returns>DLL 加载地址集合。</returns>
-        private static string[] CollectDllLocations(string assetDirectory)
+        private static string[] CollectDllLocations(string assetDirectory, CopyHotUpdateDllToFolder.CopyResult copyResult)
         {
             if (string.IsNullOrWhiteSpace(assetDirectory) || assetDirectory.StartsWith("Assets/", StringComparison.Ordinal) == false)
                 return Array.Empty<string>();
+
+            if (copyResult != null)
+            {
+                var normalizedDirectory = NormalizeAssetPath(assetDirectory).TrimEnd('/') + "/";
+                var copiedLocations = copyResult.CopiedAssetFiles
+                    .Select(NormalizeAssetPath)
+                    .Where(path => path.StartsWith(normalizedDirectory, StringComparison.Ordinal))
+                    .Where(path => path.EndsWith(".dll.bytes", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(path => path, StringComparer.Ordinal)
+                    .ToArray();
+                if (copiedLocations.Length > 0)
+                    return copiedLocations;
+            }
 
             var absoluteDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetDirectory));
             if (Directory.Exists(absoluteDirectory) == false)
                 return Array.Empty<string>();
 
             return Directory.GetFiles(absoluteDirectory, "*.dll.bytes", SearchOption.TopDirectoryOnly)
-                .Select(Path.GetFileName)
-                .Where(fileName => string.IsNullOrWhiteSpace(fileName) == false)
-                .OrderBy(fileName => fileName, StringComparer.Ordinal)
+                .Select(path => NormalizeAssetPath(Path.Combine(assetDirectory, Path.GetFileName(path))))
+                .Where(path => string.IsNullOrWhiteSpace(path) == false)
+                .OrderBy(path => path, StringComparer.Ordinal)
                 .ToArray();
+        }
+
+        /// <summary>
+        /// 获取可作为首场景的项目场景路径。
+        /// </summary>
+        /// <returns>场景资源路径集合。</returns>
+        public static string[] GetAvailableStartupSceneLocations()
+        {
+            return AssetDatabase.FindAssets("t:Scene")
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(path => string.IsNullOrWhiteSpace(path) == false)
+                .Where(path => path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(path => path == DefaultStartupScenePath ? 0 : 1)
+                .ThenBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// 解析首场景路径；当前配置无效时优先使用模板 Main 场景，其次使用项目中的第一个场景。
+        /// </summary>
+        /// <param name="currentLocation">当前场景路径。</param>
+        /// <returns>有效的场景资源路径。</returns>
+        private static string ResolveStartupSceneLocation(string currentLocation)
+        {
+            var locations = GetAvailableStartupSceneLocations();
+            if (string.IsNullOrWhiteSpace(currentLocation) == false &&
+                locations.Contains(currentLocation))
+            {
+                return currentLocation;
+            }
+
+            if (locations.Contains(DefaultStartupScenePath))
+            {
+                return DefaultStartupScenePath;
+            }
+
+            return locations.FirstOrDefault() ?? DefaultStartupScenePath;
+        }
+
+        /// <summary>
+        /// 规范化 Unity 资源路径分隔符。
+        /// </summary>
+        /// <param name="path">路径。</param>
+        /// <returns>使用正斜杠的路径。</returns>
+        private static string NormalizeAssetPath(string path)
+        {
+            return path?.Replace("\\", "/") ?? string.Empty;
+        }
+
+        /// <summary>
+        /// 确保 Assets/Resources 目录存在。
+        /// </summary>
+        private static void EnsureResourcesDirectory()
+        {
+            if (Directory.Exists("Assets/Resources") == false)
+            {
+                Directory.CreateDirectory("Assets/Resources");
+                AssetDatabase.Refresh();
+            }
         }
 
         /// <summary>

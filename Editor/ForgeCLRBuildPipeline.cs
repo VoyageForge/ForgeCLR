@@ -42,10 +42,13 @@ namespace VoyageForge.ForgeCLR.Editor
             CompileDllCommand.CompileDll(target, EditorUserBuildSettings.development);
 
             Debug.Log("[ForgeCLR] 拷贝热更新 DLL 和 AOT 元数据 DLL。");
-            CopyHotUpdateDllToFolder.CopyAssemblies(target, false);
+            var copyResult = CopyHotUpdateDllToFolder.CopyAssemblies(target, false);
 
             Debug.Log("[ForgeCLR] 自动填充运行时 SO。");
-            ForgeCLRRuntimeSettingsEditorUtility.AutoFillRuntimeSettings();
+            ForgeCLRRuntimeSettingsEditorUtility.AutoFillRuntimeSettings(copyResult);
+
+            Debug.Log("[ForgeCLR] 检查 YooAssets 收集配置。");
+            ForgeCLRQuickSetup.EnsureYooAssetCollectorConfiguration();
 
             AssetDatabase.Refresh();
 
@@ -92,8 +95,11 @@ namespace VoyageForge.ForgeCLR.Editor
                     throw new BuildFailedException("HybridCLR 尚未执行 Installer，请先打开 HybridCLR/Installer 完成安装。");
             }
 
-            if (AssetBundleCollectorSettingData.Setting == null)
-                throw new BuildFailedException("未找到 YooAssets Collector 设置，请先配置资源收集规则。");
+            if (ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetSettings(out _) == false)
+                throw new BuildFailedException("未找到 YooAssetSettings 设置，请先执行 ForgeCLR 快速设置。");
+
+            if (ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetCollectorSetting(out _) == false)
+                throw new BuildFailedException("未找到 YooAssets Collector 设置，请先执行 ForgeCLR 快速设置或在 YooAssets 中创建配置。");
         }
 
         /// <summary>

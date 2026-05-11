@@ -131,6 +131,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
                 File.Copy(sourceFile, targetFile, true);
                 result.CopiedFiles.Add(targetFile);
+                result.CopiedAssetFiles.Add(NormalizeAssetPath(Path.Combine(targetAssetDirectory, $"{dllName}.bytes")));
                 Debug.Log($"[ForgeCLR] 拷贝 DLL：{sourceFile} -> {targetFile}");
             }
         }
@@ -179,6 +180,16 @@ namespace VoyageForge.ForgeCLR.Editor
         }
 
         /// <summary>
+        /// 规范化 Unity 资源路径分隔符。
+        /// </summary>
+        /// <param name="assetPath">Assets 相对路径。</param>
+        /// <returns>使用正斜杠的资源路径。</returns>
+        private static string NormalizeAssetPath(string assetPath)
+        {
+            return assetPath.Replace("\\", "/");
+        }
+
+        /// <summary>
         /// 移除程序集名称末尾的 .dll 后缀。
         /// </summary>
         /// <param name="assemblyName">程序集名称或 DLL 文件名。</param>
@@ -211,6 +222,11 @@ namespace VoyageForge.ForgeCLR.Editor
             /// 成功拷贝的文件路径集合。
             /// </summary>
             public readonly List<string> CopiedFiles = new List<string>();
+
+            /// <summary>
+            /// 成功拷贝的 Unity 资源路径集合。
+            /// </summary>
+            public readonly List<string> CopiedAssetFiles = new List<string>();
 
             /// <summary>
             /// 缺失的源文件路径集合。

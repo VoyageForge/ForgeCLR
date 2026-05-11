@@ -1,12 +1,13 @@
 using System;
 using System.Linq;
 using UnityEngine;
+using VoyageForge.Depot.Runtime.Attributes;
 using YooAsset;
 
 namespace VoyageForge.ForgeCLR.Runtime
 {
     /// <summary>
-    /// ForgeCLR 运行时配置，保存启动资源包和热更新入口相关参数。
+    /// ForgeCLR 运行时配置，保存启动资源包、热更新程序集和首场景相关参数。
     /// </summary>
     [CreateAssetMenu(fileName = AssetName, menuName = "VoyageForge/ForgeCLR Runtime Settings")]
     public sealed class ForgeCLRRuntimeSettings : ScriptableObject
@@ -27,6 +28,7 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// YooAssets 资源包名称，需要和 YooAssets Collector 中的 PackageName 保持一致。
         /// </summary>
         [Header("YooAssets")]
+        [ReadOnly]
         [SerializeField] private string packageName = "DefaultPackage";
 
         /// <summary>
@@ -41,45 +43,36 @@ namespace VoyageForge.ForgeCLR.Runtime
         [SerializeField] private bool loadAotMetadata = true;
 
         /// <summary>
-        /// AOT 补充元数据 DLL 的 YooAssets 地址，文件通常以 .dll.bytes 形式被打入 AB。
+        /// AOT 补充元数据 DLL 的 YooAssets 完整资源路径，由 ForgeCLR 构建流程自动写入。
         /// </summary>
+        [HideInInspector]
         [SerializeField] private string[] aotMetadataDllLocations =
         {
-            "mscorlib.dll.bytes",
-            "System.dll.bytes",
-            "System.Core.dll.bytes"
+            "Assets/HotUpdateDll/MetadataDll/mscorlib.dll.bytes",
+            "Assets/HotUpdateDll/MetadataDll/System.dll.bytes",
+            "Assets/HotUpdateDll/MetadataDll/System.Core.dll.bytes"
         };
 
-        //private string aotDllPath = "Assets/HotUpdateDll/MetadataDll";
-        
         /// <summary>
-        /// 热更新程序集 DLL 的 YooAssets 地址，文件通常以 .dll.bytes 形式被打入 AB。
+        /// 热更新程序集 DLL 的 YooAssets 完整资源路径，由 ForgeCLR 构建流程自动写入。
         /// </summary>
+        [HideInInspector]
         [SerializeField] private string[] hotUpdateDllLocations =
         {
-            "HotUpdateAssembly.dll.bytes"
+            "Assets/HotUpdateDll/HotUpdateDll/HotUpdateAssembly.dll.bytes"
         };
 
         /// <summary>
-        /// 热更新入口类型的完整名称。
-        /// </summary>
-        [SerializeField] private string hotUpdateEntryTypeName = "HotUpdate.HotUpdateEntry";
-
-        /// <summary>
-        /// 热更新入口静态方法名称。
-        /// </summary>
-        [SerializeField] private string hotUpdateEntryMethodName = "Start";
-
-        /// <summary>
-        /// 是否在热更新入口启动后自动加载第一个业务场景。
+        /// 是否在热更新程序集加载完成后自动加载第一个业务场景。
         /// </summary>
         [Header("Startup Scene")]
         [SerializeField] private bool loadStartupScene = true;
 
         /// <summary>
-        /// 第一个业务场景的 YooAssets 地址；没有打入资源包时也可以填写 Build Settings 中的场景名。
+        /// 第一个业务场景的完整资源路径；没有打入资源包时也可以作为 Unity 场景路径回退加载。
         /// </summary>
-        [SerializeField] private string startupSceneLocation = "Main";
+        [ReadOnly]
+        [SerializeField] private string startupSceneLocation = "Assets/Scenes/Main.unity";
 
         /// <summary>
         /// YooAssets 资源包名称。
@@ -107,22 +100,12 @@ namespace VoyageForge.ForgeCLR.Runtime
         public string[] HotUpdateDllLocations => hotUpdateDllLocations ?? Array.Empty<string>();
 
         /// <summary>
-        /// 热更新入口类型完整名称。
-        /// </summary>
-        public string HotUpdateEntryTypeName => hotUpdateEntryTypeName;
-
-        /// <summary>
-        /// 热更新入口静态方法名称。
-        /// </summary>
-        public string HotUpdateEntryMethodName => hotUpdateEntryMethodName;
-
-        /// <summary>
         /// 是否在热更新启动完成后加载第一个业务场景。
         /// </summary>
         public bool LoadStartupScene => loadStartupScene;
 
         /// <summary>
-        /// 第一个业务场景的 YooAssets 地址或 Unity 场景名。
+        /// 第一个业务场景的完整资源路径。
         /// </summary>
         public string StartupSceneLocation => startupSceneLocation;
 
