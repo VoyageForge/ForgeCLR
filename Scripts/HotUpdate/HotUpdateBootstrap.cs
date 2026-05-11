@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -35,8 +36,7 @@ namespace VoyageForge.ForgeCLR.Runtime
             if (loadAotMetadata)
                 await LoadAotMetadataAsync(package, aotMetadataDllLocations);
 
-            var assemblies = await LoadHotUpdateAssembliesAsync(package, hotUpdateDllLocations);
-            await InvokeEntryAsync(assemblies, entryTypeName, entryMethodName);
+            await LoadHotUpdateAssembliesAsync(package, hotUpdateDllLocations);
         }
 
         /// <summary>
@@ -82,9 +82,10 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// <param name="package">YooAssets 资源包。</param>
         /// <param name="locations">热更新程序集 DLL 的 YooAssets 地址集合。</param>
         /// <returns>当前 AppDomain 中已加载的程序集集合。</returns>
-        private static async UniTask<Assembly[]> LoadHotUpdateAssembliesAsync(ResourcePackage package, string[] locations)
+        private static async UniTask<Assembly[]> LoadHotUpdateAssembliesAsync(ResourcePackage package,
+            string[] locations)
         {
-            var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies().ToList();
+            var loadedAssemblies = new List<Assembly>();
 
             foreach (var location in locations ?? Array.Empty<string>())
             {
@@ -94,12 +95,13 @@ namespace VoyageForge.ForgeCLR.Runtime
                 var assemblyName = GetAssemblyName(location);
 
 #if UNITY_EDITOR
-                var editorAssembly = loadedAssemblies.FirstOrDefault(assembly => assembly.GetName().Name == assemblyName);
+                var editorAssembly =
+                    loadedAssemblies.FirstOrDefault(assembly => assembly.GetName().Name == assemblyName);
                 if (editorAssembly != null)
                     continue;
 #endif
 
-                using var handle = package.LoadRawFileAsync(location);
+                using var handle = package.LoadAssetAsync<TextAsset>(location);
                 await handle.ToUniTask();
 
                 if (handle.Status != EOperationStatus.Succeed)
@@ -108,7 +110,7 @@ namespace VoyageForge.ForgeCLR.Runtime
                     continue;
                 }
 
-                var assembly = Assembly.Load(handle.GetRawFileData());
+                var assembly = Assembly.Load(handle.GetAssetObject<TextAsset>().bytes);
                 loadedAssemblies.Add(assembly);
                 Debug.Log($"[ForgeCLR] 热更新程序集加载成功：{assembly.GetName().Name}");
             }
@@ -116,39 +118,6 @@ namespace VoyageForge.ForgeCLR.Runtime
             return loadedAssemblies.ToArray();
         }
 
-        /// <summary>
-        /// 调用热更新入口静态方法。
-        /// </summary>
-        /// <param name="assemblies">用于查找入口类型的程序集集合。</param>
-        /// <param name="entryTypeName">入口类型完整名称。</param>
-        /// <param name="entryMethodName">入口静态方法名称。</param>
-        private static async UniTask InvokeEntryAsync(Assembly[] assemblies, string entryTypeName, string entryMethodName)
-        {
-            if (string.IsNullOrWhiteSpace(entryTypeName) || string.IsNullOrWhiteSpace(entryMethodName))
-                return;
-
-            var entryType = assemblies.Select(assembly => assembly.GetType(entryTypeName)).FirstOrDefault(type => type != null);
-            if (entryType == null)
-            {
-                Debug.LogWarning($"[ForgeCLR] 未找到热更新入口类型：{entryTypeName}");
-                return;
-            }
-
-            var method = entryType.GetMethod(entryMethodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-            if (method == null)
-            {
-                Debug.LogWarning($"[ForgeCLR] 未找到热更新入口方法：{entryType.FullName}.{entryMethodName}");
-                return;
-            }
-
-            var result = method.Invoke(null, null);
-            if (result is UniTask uniTask)
-                await uniTask;
-            else if (result is Task task)
-                await task;
-
-            Debug.Log($"[ForgeCLR] 热更新入口启动完成：{entryType.FullName}.{method.Name}");
-        }
 
         /// <summary>
         /// 从 DLL 文件地址推导程序集名称。

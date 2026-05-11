@@ -97,3 +97,11 @@ HybridCLR 的“程序集集合”分成两类理解：
 2. 在 YooAssets Collector 中收集 `Assets/HotUpdateDll/HotUpdateDll` 和 `Assets/HotUpdateDll/MetadataDll`。
 3. 运行 `VoyageForge/ForgeCLR/构建资源包`。
 4. 资源包验证通过后，再打开 Unity Build Settings 面板构建软件包。
+
+## 待改进
+1. 避免 没有开启 enable addressable导致的 资源无法加载问题，统一写全路径
+2. 避免 support Extensionless 问题 ，导致的加载问题
+3. 禁止手动 填写 程序集名称，统一通过 hclr 获取程序集名称
+4. 剔除 hotUpdateEntryTypeName 配置项，以及hotUpdateEntryMethodName
+5. 启动场景 改为 使用下拉框选择，而不是手动填写
+6. 更新一键配置， 自动创建Main 场景，自动创建 yooassets 配置,自动填入dll和scene 资源路径

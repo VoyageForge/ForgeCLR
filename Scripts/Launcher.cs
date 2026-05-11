@@ -44,6 +44,8 @@ namespace VoyageForge.ForgeCLR.Runtime
                 runtimeSettings.HotUpdateDllLocations,
                 runtimeSettings.HotUpdateEntryTypeName,
                 runtimeSettings.HotUpdateEntryMethodName);
+
+            await YooAssets.LoadSceneAsync("Assets/Scenes/Main");
         }
     }
 }

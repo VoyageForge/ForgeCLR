@@ -21,6 +21,8 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// </summary>
         private const string DefaultResourcesPath = "VoyageForge/Config/" + AssetName;
 
+       
+        
         /// <summary>
         /// YooAssets 资源包名称，需要和 YooAssets Collector 中的 PackageName 保持一致。
         /// </summary>
@@ -48,6 +50,8 @@ namespace VoyageForge.ForgeCLR.Runtime
             "System.Core.dll.bytes"
         };
 
+        //private string aotDllPath = "Assets/HotUpdateDll/MetadataDll";
+        
         /// <summary>
         /// 热更新程序集 DLL 的 YooAssets 地址，文件通常以 .dll.bytes 形式被打入 AB。
         /// </summary>

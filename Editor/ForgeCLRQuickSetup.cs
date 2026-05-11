@@ -114,6 +114,8 @@ namespace VoyageForge.ForgeCLR.Editor
         /// </summary>
         private const string ValidateMenuPath = "VoyageForge/ForgeCLR/验证环境";
 
+        private const string HotUpdateAssemblyPath = "Assets/HotUpdateAssembly";
+        
         /// <summary>
         /// 执行 ForgeCLR 快速设置。
         /// </summary>
@@ -123,12 +125,35 @@ namespace VoyageForge.ForgeCLR.Editor
             var settings = ForgeCLRSettings.instance;
             CreateDirectory(settings.HotUpdateDllCopyDirectory);
             CreateDirectory(settings.MetadataDllCopyDirectory);
+
+            CheckHotUpdateAssembly();
+            CheckHCLRSetting();
+            
             ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
             settings.SaveSettings();
             AssetDatabase.Refresh();
 
             EditorUtility.DisplayDialog("ForgeCLR 快速设置", "目录和 Project Settings 配置已准备完成。", "确定");
             Debug.Log("[ForgeCLR] 快速设置完成。");
+        }
+
+        /// <summary>
+        /// 检查 HybridCLR 配置文件。
+        /// </summary>
+        private static void CheckHCLRSetting()
+        {
+            
+        }
+
+        /// <summary>
+        /// 检查并创建热更新程序集目录。
+        /// </summary>
+        private static void CheckHotUpdateAssembly()
+        {
+            if (!Directory.Exists(HotUpdateAssemblyPath))
+            {
+                Directory.CreateDirectory(HotUpdateAssemblyPath);
+            }
         }
 
         /// <summary>
