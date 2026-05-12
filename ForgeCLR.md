@@ -115,3 +115,11 @@ HybridCLR 的“程序集集合”分成两类理解：
 ## 待改进
 1. 构建软件包前增加更完整的运行前检查，例如首场景是否已经被 YooAssets 收集。
 2. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。
+3. 已经 将 FCLR 的配置放入Resources/VoyageForge/Config/ForgeCLRRuntimeSettings.asset，已经调整了Launcher 相关代码。
+4. 打包前需要检测 FCLR 的配置是否存在，且正确配置。
+5. 目前保存的 场景名称还是名称，需改为保存完整资源路径，同时添加场景自定义配置。
+6. 如果是 android 平台 yooassets 需要 检查 配置启动项 -force-gles
+7. android 使用LoadRawFileAsync ，会从 android 内置包去加载资源，导致加载失败
+8. 构建资源包 不应该调用 PrebuildCommand.GenerateAll()，这回导致空包内程序集数据和现有数据不一致，应在构建软件包时调用
+9. 添加局域网文件服务器，用于在不同设备上测试资源包加载
+10. 

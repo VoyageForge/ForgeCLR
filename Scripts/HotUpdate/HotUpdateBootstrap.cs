@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using HybridCLR;
 using UnityEngine;
@@ -11,17 +12,18 @@ using YooAsset;
 namespace VoyageForge.ForgeCLR.Runtime
 {
     /// <summary>
-    /// HybridCLR 热更新启动器，负责加载 AOT 元数据和热更新程序集。
+    /// HybridCLR 热更新启动器，负责加载 AOT 元数据、加载热更新程序集并调用入口方法。
     /// </summary>
     public static class HotUpdateBootstrap
     {
         /// <summary>
-        /// 启动热更新程序集加载流程。
+        /// 启动热更新程序集入口。
         /// </summary>
         /// <param name="package">已经完成初始化和补丁更新的 YooAssets 资源包。</param>
         /// <param name="loadAotMetadata">是否加载 AOT 补充元数据。</param>
         /// <param name="aotMetadataDllLocations">AOT 元数据 DLL 的 YooAssets 地址集合。</param>
         /// <param name="hotUpdateDllLocations">热更新程序集 DLL 的 YooAssets 地址集合。</param>
+      
         public static async UniTask StartAsync(
             ResourcePackage package,
             bool loadAotMetadata,
@@ -50,7 +52,8 @@ namespace VoyageForge.ForgeCLR.Runtime
                 if (string.IsNullOrWhiteSpace(location))
                     continue;
 
-                using var handle = package.LoadRawFileAsync(location);
+// 禁止使用LoadRawFileAsync ，会从 android 内置包去加载资源，导致加载失败
+                using var handle = package.LoadAssetAsync<TextAsset>(location);
                 await handle.ToUniTask();
 
                 if (handle.Status != EOperationStatus.Succeed)
@@ -58,9 +61,9 @@ namespace VoyageForge.ForgeCLR.Runtime
                     Debug.LogError($"[ForgeCLR] 加载 AOT 元数据失败：{location}，{handle.LastError}");
                     continue;
                 }
-
+                
                 var errorCode = RuntimeApi.LoadMetadataForAOTAssembly(
-                    handle.GetRawFileData(),
+                    handle.GetAssetObject<TextAsset>().bytes ,
                     HomologousImageMode.SuperSet);
 
                 if (errorCode == LoadImageErrorCode.OK)
@@ -76,10 +79,11 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// </summary>
         /// <param name="package">YooAssets 资源包。</param>
         /// <param name="locations">热更新程序集 DLL 的 YooAssets 地址集合。</param>
-        private static async UniTask LoadHotUpdateAssembliesAsync(ResourcePackage package,
+        /// <returns>当前 AppDomain 中已加载的程序集集合。</returns>
+        private static async UniTask<Assembly[]> LoadHotUpdateAssembliesAsync(ResourcePackage package,
             string[] locations)
         {
-            var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies().ToList();
+            var loadedAssemblies = new List<Assembly>();
 
             foreach (var location in locations ?? Array.Empty<string>())
             {
@@ -108,6 +112,8 @@ namespace VoyageForge.ForgeCLR.Runtime
                 loadedAssemblies.Add(assembly);
                 Debug.Log($"[ForgeCLR] 热更新程序集加载成功：{assembly.GetName().Name}");
             }
+
+            return loadedAssemblies.ToArray();
         }
 
 

@@ -35,10 +35,12 @@ namespace VoyageForge.ForgeCLR.Editor
             var target = EditorUserBuildSettings.activeBuildTarget;
 
             ValidateEnvironment(true);
-            Debug.Log("[ForgeCLR] 开始 HybridCLR Generate/All。");
-            PrebuildCommand.GenerateAll();
+          //  Debug.Log("[ForgeCLR] 开始 HybridCLR Generate/All。");
+          //  PrebuildCommand.GenerateAll();
+           
+          //构建资源包 不应该调用 PrebuildCommand.GenerateAll()，这回导致空包内程序集数据和现有数据不一致
 
-            Debug.Log("[ForgeCLR] 编译 HybridCLR 热更新 DLL。");
+            Debug.Log("<color=red>[ForgeCLR] 编译 HybridCLR 热更新 DLL。</color>");
             CompileDllCommand.CompileDll(target, EditorUserBuildSettings.development);
 
             Debug.Log("[ForgeCLR] 拷贝热更新 DLL 和 AOT 元数据 DLL。");
@@ -50,7 +52,7 @@ namespace VoyageForge.ForgeCLR.Editor
             Debug.Log("[ForgeCLR] 检查 YooAssets 收集配置。");
             ForgeCLRQuickSetup.EnsureYooAssetCollectorConfiguration();
 
-            AssetDatabase.Refresh();
+           // AssetDatabase.Refresh();
 
             Debug.Log("[ForgeCLR] 开始 YooAssets 资源构建。");
             var results = BuildYooAssetPackages(target);

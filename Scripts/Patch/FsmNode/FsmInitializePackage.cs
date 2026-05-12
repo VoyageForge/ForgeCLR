@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Networking;
 using VoyageForge.Bridge.Runtime;
 using YooAsset;
 
@@ -61,9 +63,11 @@ namespace VoyageForge.ForgeCLR.Runtime
             }
             else if (playMode == EPlayMode.OfflinePlayMode)
             {
+                
                 operation = package.InitializeAsync(new OfflinePlayModeParameters
                 {
-                    BuildinFileSystemParameters = FileSystemParameters.CreateDefaultBuildinFileSystemParameters()
+                    BuildinFileSystemParameters = FileSystemParameters.CreateDefaultBuildinFileSystemParameters(),
+                    
                 });
             }
             else if (playMode == EPlayMode.HostPlayMode)
@@ -84,7 +88,8 @@ namespace VoyageForge.ForgeCLR.Runtime
                 operation = package.InitializeAsync(new HostPlayModeParameters
                 {
                     BuildinFileSystemParameters = FileSystemParameters.CreateDefaultBuildinFileSystemParameters(),
-                    CacheFileSystemParameters = FileSystemParameters.CreateDefaultCacheFileSystemParameters(remoteServices)
+                    CacheFileSystemParameters =
+                        FileSystemParameters.CreateDefaultCacheFileSystemParameters(remoteServices)
                 });
             }
             else if (playMode == EPlayMode.WebPlayMode)
@@ -122,6 +127,41 @@ namespace VoyageForge.ForgeCLR.Runtime
             BridgeClient.UseDefaultConfigProviderIfMissing<ResourcesBridgeConfigProvider>();
             string hostServerUrl = BridgeClient.Config.GetBaseUrl(ResourceEndpointKey);
             return hostServerUrl.TrimEnd('/');
+        }
+        
+        private async UniTask CopyStreamingAssetsToSandbox(string streamingRoot, string sandboxRoot)
+        {
+            if (!Directory.Exists(sandboxRoot))
+                Directory.CreateDirectory(sandboxRoot);
+
+            string[] files = new string[]
+            {
+                "AssetBundles/yourbundle", 
+                "BuildinCatalog.bytes"
+                // 可以遍历 StreamingAssets 下所有 AB
+            };
+
+            foreach (var file in files)
+            {
+                string srcPath = Path.Combine(streamingRoot, file);
+                string dstPath = Path.Combine(sandboxRoot, file);
+
+                string dir = Path.GetDirectoryName(dstPath);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                using UnityWebRequest uwr = UnityWebRequest.Get(srcPath);
+                await uwr.SendWebRequest().ToUniTask();
+
+                if (uwr.result == UnityWebRequest.Result.Success)
+                {
+                    File.WriteAllBytes(dstPath, uwr.downloadHandler.data);
+                }
+                else
+                {
+                    Debug.LogError($"拷贝失败: {srcPath}");
+                }
+            }
         }
     }
 }

@@ -12,13 +12,19 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// <summary>
         /// 运行时配置；为空时会从 Resources/ForgeCLRRuntimeSettings 自动加载。
         /// </summary>
-        [SerializeField] private ForgeCLRRuntimeSettings settings;
+        private ForgeCLRRuntimeSettings settings;
 
         /// <summary>
         /// Unity 启动回调，执行资源补丁、加载热更新程序集并进入首个业务场景。
         /// </summary>
         private async UniTaskVoid Start()
         {
+            var ct = this.GetCancellationTokenOnDestroy();
+
+            settings = await Resources.LoadAsync<ForgeCLRRuntimeSettings>(ForgeCLRRuntimeSettings.DefaultResourcesPath)
+                .ToUniTask(cancellationToken: ct)
+                .ContinueWith(request => request as ForgeCLRRuntimeSettings);
+
             var runtimeSettings = settings != null ? settings : ForgeCLRRuntimeSettings.LoadDefault();
 
             YooAssets.Initialize();
@@ -32,18 +38,27 @@ namespace VoyageForge.ForgeCLR.Runtime
                 Debug.LogError($"[ForgeCLR] Patch failed: {operation.Error}");
                 return;
             }
+            else
+            {
+                Debug.Log($"[ForgeCLR] Patch succeeded: {operation.Status}");
+            }
+            
 
             var gamePackage = YooAssets.GetPackage(runtimeSettings.PackageName);
-            YooAssets.SetDefaultPackage(gamePackage);
-            ForgeCLRSceneLoader.SetDefaultPackage(gamePackage);
 
+            Debug.Log($"[ForgeCLR] Set default package to {gamePackage.PackageName}");
+            
+            YooAssets.SetDefaultPackage(gamePackage);
+            
+            Debug.Log($"[ForgeCLR] Set streaming assets");
+            
             await HotUpdateBootstrap.StartAsync(
                 gamePackage,
                 runtimeSettings.LoadAotMetadata,
                 runtimeSettings.AotMetadataDllLocations,
                 runtimeSettings.HotUpdateDllLocations);
 
-            await ForgeCLRSceneLoader.LoadStartupSceneAsync(gamePackage, runtimeSettings);
+            await ForgeCLRSceneLoader.LoadStartupSceneAsync(runtimeSettings);
         }
     }
 }

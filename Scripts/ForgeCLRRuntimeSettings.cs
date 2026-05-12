@@ -20,9 +20,10 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// <summary>
         /// 默认配置在 Resources 下的子路径。
         /// </summary>
-        private const string DefaultResourcesPath = "VoyageForge/Config/" + AssetName;
+        public const string DefaultResourcesPath = "VoyageForge/Config/" + AssetName;
 
        
+        
         
         /// <summary>
         /// YooAssets 资源包名称，需要和 YooAssets Collector 中的 PackageName 保持一致。
