@@ -12,7 +12,7 @@ namespace VoyageForge.ForgeCLR.Editor
         private const string PrefPort = "VoyageForge_ForgeCLR_FileServer_Port";
         private const string PrefBindIPAddress = "VoyageForge_ForgeCLR_FileServer_BindIPAddress";
 
-        private static VoyageForgeFileServer _server;
+        private VoyageForgeFileServer Server => VoyageForgeFileServerSingleton.Server;
 
         private string _rootDirectory;
         private int _port;
@@ -30,7 +30,7 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             VoyageForgeFileServerWindow window = GetWindow<VoyageForgeFileServerWindow>();
             window.titleContent = new GUIContent("VoyageForge File Server");
-            window.minSize = new Vector2(620, 520);
+            window.minSize = new Vector2(660, 560);
             window.Show();
         }
 
@@ -42,11 +42,8 @@ namespace VoyageForge.ForgeCLR.Editor
 
             RefreshIPList();
 
-            if (_server == null)
-            {
-                _server = new VoyageForgeFileServer();
-                _server.OnLog += AppendLog;
-            }
+            if (Server != null)
+                Server.OnLog += AppendLog;
 
             AppendLog("VoyageForge File Server Window 已打开。");
         }
@@ -56,6 +53,9 @@ namespace VoyageForge.ForgeCLR.Editor
             EditorPrefs.SetString(PrefRootDirectory, _rootDirectory);
             EditorPrefs.SetInt(PrefPort, _port);
             EditorPrefs.SetString(PrefBindIPAddress, _bindIPAddress);
+
+            if (Server != null)
+                Server.OnLog -= AppendLog;
         }
 
         private void OnGUI()
@@ -68,6 +68,8 @@ namespace VoyageForge.ForgeCLR.Editor
             EditorGUILayout.Space(8);
             DrawButtons();
             EditorGUILayout.Space(8);
+            DrawAutoRestart();
+            EditorGUILayout.Space(8);
             DrawLog();
         }
 
@@ -77,7 +79,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
             EditorGUILayout.HelpBox(
                 "启动后，同一局域网内设备可以通过 IP 地址访问并下载根目录下的文件。\n" +
-                "如果你开启了 VPN，自动检测到的第一个 IP 可能是虚拟网卡，所以这里提供 IP 下拉选择。\n" +
+                "如果开启了 VPN，建议选择 0.0.0.0 监听所有网卡，然后使用推荐访问地址。\n" +
                 "如果局域网设备无法访问，请在 Windows 防火墙中允许 Unity Editor 通过专用网络。",
                 MessageType.Info);
         }
@@ -109,14 +111,10 @@ namespace VoyageForge.ForgeCLR.Editor
                 _port = EditorGUILayout.IntField(_port);
 
                 if (GUILayout.Button("检测端口", GUILayout.Width(90)))
-                {
                     CheckPort();
-                }
 
                 if (GUILayout.Button("自动查找", GUILayout.Width(90)))
-                {
                     AutoFindPort();
-                }
             }
 
             using (new EditorGUILayout.HorizontalScope())
@@ -136,11 +134,14 @@ namespace VoyageForge.ForgeCLR.Editor
                 }
 
                 if (GUILayout.Button("刷新", GUILayout.Width(60)))
-                {
                     RefreshIPList();
-                }
             }
 
+            DrawIPHelpBox();
+        }
+
+        private void DrawIPHelpBox()
+        {
             string selectedBindIP = GetSelectedBindIP();
 
             if (string.IsNullOrWhiteSpace(selectedBindIP))
@@ -149,7 +150,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
                 EditorGUILayout.HelpBox(
                     $"当前选择：监听所有网卡 0.0.0.0\n" +
-                    $"访问时不要使用 0.0.0.0，请使用推荐地址：\n" +
+                    $"访问时不要使用 0.0.0.0，请使用：\n" +
                     $"http://{recommendIP}:{_port}/",
                     MessageType.None);
             }
@@ -161,7 +162,7 @@ namespace VoyageForge.ForgeCLR.Editor
                 {
                     EditorGUILayout.HelpBox(
                         $"当前选择的 IP 疑似虚拟网卡：{selectedBindIP}\n" +
-                        $"如果你要让手机或局域网内其他电脑访问，建议选择 Wi-Fi / Ethernet 对应的 192.168.x.x 地址。",
+                        $"如果你要让手机或局域网内其他电脑访问，建议选择 Wi-Fi / Ethernet 的真实局域网 IP，或者选择 0.0.0.0。",
                         MessageType.Warning);
                 }
                 else
@@ -177,27 +178,27 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             EditorGUILayout.LabelField("状态", EditorStyles.boldLabel);
 
-            bool running = _server != null && _server.IsRunning;
+            bool running = Server != null && Server.IsRunning;
 
             EditorGUILayout.LabelField("运行状态", running ? "运行中" : "未启动");
 
             if (running)
             {
-                EditorGUILayout.LabelField("绑定 IP", string.IsNullOrWhiteSpace(_server.BindIPAddress) ? "0.0.0.0" : _server.BindIPAddress);
-                EditorGUILayout.LabelField("访问 IP", _server.LocalIPAddress);
-                EditorGUILayout.LabelField("访问地址", _server.ServerUrl);
+                EditorGUILayout.LabelField("绑定 IP", string.IsNullOrWhiteSpace(Server.BindIPAddress) ? "0.0.0.0" : Server.BindIPAddress);
+                EditorGUILayout.LabelField("访问 IP", Server.LocalIPAddress);
+                EditorGUILayout.LabelField("访问地址", Server.ServerUrl);
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     if (GUILayout.Button("复制访问地址"))
                     {
-                        EditorGUIUtility.systemCopyBuffer = _server.ServerUrl;
-                        AppendLog($"已复制地址: {_server.ServerUrl}");
+                        EditorGUIUtility.systemCopyBuffer = Server.ServerUrl;
+                        AppendLog($"已复制地址: {Server.ServerUrl}");
                     }
 
                     if (GUILayout.Button("浏览器打开"))
                     {
-                        Application.OpenURL(_server.ServerUrl);
+                        Application.OpenURL(Server.ServerUrl);
                     }
                 }
             }
@@ -224,22 +225,36 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                GUI.enabled = _server == null || !_server.IsRunning;
+                GUI.enabled = Server == null || !Server.IsRunning;
 
                 if (GUILayout.Button("启动服务器", GUILayout.Height(32)))
-                {
                     StartServer();
-                }
 
-                GUI.enabled = _server != null && _server.IsRunning;
+                GUI.enabled = Server != null && Server.IsRunning;
 
                 if (GUILayout.Button("停止服务器", GUILayout.Height(32)))
-                {
                     StopServer();
-                }
 
                 GUI.enabled = true;
             }
+        }
+
+        private void DrawAutoRestart()
+        {
+            bool oldAutoRestart = VoyageForgeFileServerSingleton.AutoRestart;
+
+            bool newAutoRestart = EditorGUILayout.ToggleLeft("自动恢复服务器，Play Mode / 编译后自动恢复", oldAutoRestart);
+
+            if (newAutoRestart != oldAutoRestart)
+            {
+                VoyageForgeFileServerSingleton.AutoRestart = newAutoRestart;
+                AppendLog($"自动恢复服务器: {(newAutoRestart ? "开启" : "关闭")}");
+            }
+
+            EditorGUILayout.HelpBox(
+                "关闭自动恢复后，进入 Play Mode 或编译脚本时，如果服务器因为 Domain Reload 停止，不会自动重启。\n" +
+                "开启自动恢复后，只有在你手动启动过服务器，并且没有点“停止服务器”的情况下，才会自动恢复。",
+                MessageType.None);
         }
 
         private void DrawLog()
@@ -255,9 +270,7 @@ namespace VoyageForge.ForgeCLR.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("清空日志"))
-                {
                     _logBuilder.Clear();
-                }
             }
         }
 
@@ -308,11 +321,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
                 _bindIPAddress = GetSelectedBindIP();
 
-                EditorPrefs.SetString(PrefRootDirectory, _rootDirectory);
-                EditorPrefs.SetInt(PrefPort, _port);
-                EditorPrefs.SetString(PrefBindIPAddress, _bindIPAddress);
-
-                _server.Start(_rootDirectory, _port, _bindIPAddress);
+                VoyageForgeFileServerSingleton.StartServer(_rootDirectory, _port, _bindIPAddress);
             }
             catch (Exception e)
             {
@@ -326,7 +335,7 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             try
             {
-                _server?.Stop();
+                VoyageForgeFileServerSingleton.StopServer(permanent: true);
             }
             catch (Exception e)
             {
@@ -404,9 +413,6 @@ namespace VoyageForge.ForgeCLR.Editor
                 }
             }
 
-            // 如果没有保存过 IP，默认仍然选择 0.0.0.0。
-            // 好处是监听所有网卡，不会因为选错 IP 导致访问不了。
-            _selectedIPIndex = 0;
             _bindIPAddress = string.Empty;
         }
 

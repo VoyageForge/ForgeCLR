@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEditor;
 using UnityEngine;
 
 namespace VoyageForge.ForgeCLR.Editor
@@ -23,16 +24,8 @@ namespace VoyageForge.ForgeCLR.Editor
 
         public int Port { get; private set; }
 
-        /// <summary>
-        /// 用于显示给用户访问的 IP。
-        /// 如果绑定 0.0.0.0，则这里会使用推荐访问 IP。
-        /// </summary>
         public string LocalIPAddress { get; private set; }
 
-        /// <summary>
-        /// 实际绑定地址。
-        /// 空字符串表示 IPAddress.Any，也就是 0.0.0.0。
-        /// </summary>
         public string BindIPAddress { get; private set; }
 
         public string ServerUrl => $"http://{LocalIPAddress}:{Port}/";
@@ -43,7 +36,7 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             if (IsRunning)
             {
-                Log("文件服务器已经在运行。");
+                Log("服务器已经在运行。");
                 return;
             }
 
@@ -57,7 +50,7 @@ namespace VoyageForge.ForgeCLR.Editor
                 throw new ArgumentOutOfRangeException(nameof(port), "端口号必须在 1 - 65535 之间。");
 
             if (!IsPortAvailable(port))
-                throw new InvalidOperationException($"端口 {port} 已被占用，请换一个端口。");
+                throw new InvalidOperationException($"端口 {port} 已被占用。");
 
             RootDirectory = Path.GetFullPath(rootDirectory);
             Port = port;
@@ -65,17 +58,15 @@ namespace VoyageForge.ForgeCLR.Editor
 
             IPAddress bindAddress = IPAddress.Any;
 
-            if (!string.IsNullOrWhiteSpace(bindIPAddress))
+            if (!string.IsNullOrWhiteSpace(BindIPAddress))
             {
-                if (!IPAddress.TryParse(bindIPAddress, out bindAddress))
-                    throw new ArgumentException($"无效的绑定 IP: {bindIPAddress}");
+                if (!IPAddress.TryParse(BindIPAddress, out bindAddress))
+                    throw new ArgumentException($"无效的绑定 IP: {BindIPAddress}");
             }
 
-            // 如果绑定所有网卡，显示推荐的真实局域网 IP。
-            // 如果绑定指定 IP，显示该 IP。
-            LocalIPAddress = string.IsNullOrWhiteSpace(bindIPAddress)
+            LocalIPAddress = string.IsNullOrWhiteSpace(BindIPAddress)
                 ? GetRecommendedLocalIPv4()
-                : bindIPAddress;
+                : BindIPAddress;
 
             _cts = new CancellationTokenSource();
 
@@ -87,8 +78,7 @@ namespace VoyageForge.ForgeCLR.Editor
             _serverTask = Task.Run(() => AcceptLoopAsync(_cts.Token), _cts.Token);
 
             Log($"VoyageForge 文件服务器已启动: {ServerUrl}");
-            Log($"绑定地址: {(string.IsNullOrWhiteSpace(bindIPAddress) ? "0.0.0.0" : bindIPAddress)}");
-            Log($"推荐访问地址: {ServerUrl}");
+            Log($"绑定地址: {(string.IsNullOrWhiteSpace(BindIPAddress) ? "0.0.0.0" : BindIPAddress)}");
             Log($"根目录: {RootDirectory}");
         }
 
@@ -149,45 +139,45 @@ namespace VoyageForge.ForgeCLR.Editor
 
                 try
                 {
-                    using NetworkStream stream = client.GetStream();
-
-                    string requestHeader = await ReadRequestHeaderAsync(stream, token);
-
-                    if (string.IsNullOrWhiteSpace(requestHeader))
-                        return;
-
-                    string[] lines = requestHeader.Split(new[] { "\r\n" }, StringSplitOptions.None);
-
-                    if (lines.Length == 0)
-                        return;
-
-                    string requestLine = lines[0];
-
-                    // GET /xxx HTTP/1.1
-                    string[] parts = requestLine.Split(' ');
-
-                    if (parts.Length < 3)
+                    using (NetworkStream stream = client.GetStream())
                     {
-                        await WriteTextResponseAsync(stream, 400, "Bad Request", "Bad Request", token);
-                        return;
+                        string requestHeader = await ReadRequestHeaderAsync(stream, token);
+
+                        if (string.IsNullOrWhiteSpace(requestHeader))
+                            return;
+
+                        string[] lines = requestHeader.Split(new[] { "\r\n" }, StringSplitOptions.None);
+
+                        if (lines.Length == 0)
+                            return;
+
+                        string requestLine = lines[0];
+
+                        string[] parts = requestLine.Split(' ');
+
+                        if (parts.Length < 3)
+                        {
+                            await WriteTextResponseAsync(stream, 400, "Bad Request", "Bad Request", token);
+                            return;
+                        }
+
+                        string method = parts[0];
+                        string rawUrl = parts[1];
+
+                        if (!string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await WriteTextResponseAsync(stream, 405, "Method Not Allowed", "Only GET / HEAD supported", token);
+                            return;
+                        }
+
+                        bool isHead = string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase);
+
+                        string urlPath = rawUrl.Split('?')[0];
+                        urlPath = Uri.UnescapeDataString(urlPath);
+
+                        await HandleGetAsync(stream, urlPath, isHead, token);
                     }
-
-                    string method = parts[0];
-                    string rawUrl = parts[1];
-
-                    if (!string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase))
-                    {
-                        await WriteTextResponseAsync(stream, 405, "Method Not Allowed", "Only GET / HEAD supported", token);
-                        return;
-                    }
-
-                    bool isHead = string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase);
-
-                    string urlPath = rawUrl.Split('?')[0];
-                    urlPath = Uri.UnescapeDataString(urlPath);
-
-                    await HandleGetAsync(stream, urlPath, isHead, token);
                 }
                 catch (IOException)
                 {
@@ -217,7 +207,6 @@ namespace VoyageForge.ForgeCLR.Editor
 
             string fullPath = Path.GetFullPath(Path.Combine(RootDirectory, relativePath));
 
-            // 防止 ../ 越权访问
             if (!IsSubPathOf(fullPath, RootDirectory))
             {
                 await WriteTextResponseAsync(stream, 403, "Forbidden", "Forbidden", token);
@@ -293,7 +282,6 @@ namespace VoyageForge.ForgeCLR.Editor
             {
                 string name = Path.GetFileName(file);
                 long size = new FileInfo(file).Length;
-
                 string href = Uri.EscapeDataString(name);
 
                 html.AppendLine(
@@ -328,7 +316,6 @@ namespace VoyageForge.ForgeCLR.Editor
 
             string fileName = fileInfo.Name;
             string contentType = GetContentType(fileInfo.Extension);
-
             string encodedFileName = Uri.EscapeDataString(fileName);
 
             string header =
@@ -350,19 +337,20 @@ namespace VoyageForge.ForgeCLR.Editor
             const int bufferSize = 1024 * 128;
             byte[] buffer = new byte[bufferSize];
 
-            using FileStream fs = new FileStream(
-                filePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite,
-                bufferSize,
-                useAsync: true);
-
-            int read;
-
-            while ((read = await fs.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+            using (FileStream fs = new FileStream(
+                       filePath,
+                       FileMode.Open,
+                       FileAccess.Read,
+                       FileShare.ReadWrite,
+                       bufferSize,
+                       useAsync: true))
             {
-                await stream.WriteAsync(buffer, 0, read, token);
+                int read;
+
+                while ((read = await fs.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+                {
+                    await stream.WriteAsync(buffer, 0, read, token);
+                }
             }
 
             Log($"下载文件: {fileName}");
@@ -410,7 +398,6 @@ namespace VoyageForge.ForgeCLR.Editor
                 if (text.Contains("\r\n\r\n"))
                     return text;
 
-                // 防止恶意超大 Header
                 if (buffer.Count > 32 * 1024)
                     break;
             }
@@ -698,8 +685,24 @@ namespace VoyageForge.ForgeCLR.Editor
 
         private void Log(string message)
         {
+            // 先在控制台打印
             Debug.Log($"[VoyageForge FileServer] {message}");
-            OnLog?.Invoke(message);
+
+            if (OnLog != null)
+            {
+                // 调度到主线程执行
+                EditorApplication.delayCall += () =>
+                {
+                    try
+                    {
+                        OnLog.Invoke(message);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[VoyageForge FileServer] OnLog 回调异常: {e}");
+                    }
+                };
+            }
         }
     }
 

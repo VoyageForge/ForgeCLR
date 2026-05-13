@@ -20,7 +20,7 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// <summary>
         /// Bridge 中用于 YooAssets 资源服务器的端点键。
         /// </summary>
-        private const string ResourceEndpointKey = "default";
+        private const string ResourceEndpointKey = "Assets";
 
         void IStateNode.OnCreate(StateMachine machine)
         {

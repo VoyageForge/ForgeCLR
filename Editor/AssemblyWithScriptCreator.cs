@@ -13,7 +13,7 @@ public class AssemblyWithScriptCreator : EditorWindow
     private string targetFolder = "Assets";
     private string assemblyName = "NewAssembly";
 
-    [MenuItem("Tools/Create Assembly with Script...")]
+    //[MenuItem("Tools/Create Assembly with Script...")]
     public static void ShowWindow()
     {
         // 获取当前选中的文件夹路径（如果有的话）

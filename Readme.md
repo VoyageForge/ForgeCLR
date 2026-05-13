@@ -123,3 +123,4 @@ HybridCLR 的“程序集集合”分成两类理解：
 8. 构建资源包 不应该调用 PrebuildCommand.GenerateAll()，这回导致空包内程序集数据和现有数据不一致，应在构建软件包时调用
 9. 添加局域网文件服务器，用于在不同设备上测试资源包加载
 10. 已添加建议文件服务器 VoyageForgeFileServer，需要将配置保存到 projectsetting待完成，需要配合防火墙中关于UnityEditor的进出策略，unity入站tcp端口全公开
+11. 添加文件服务器 域重载， 待整理 UI ，配置项, 自动调整 IP 地址
