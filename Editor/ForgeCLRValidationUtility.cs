@@ -28,6 +28,7 @@ namespace VoyageForge.ForgeCLR.Editor
             var items = new List<ForgeCLRValidationItem>();
             var settings = ForgeCLRSettings.instance;
 
+            // 基础文件和第三方依赖检测：这些项缺失时，后续构建流程通常无法继续。
             AppendCheck(items, File.Exists("Packages/manifest.json"), "Packages Manifest", "Packages/manifest.json 已找到", "未找到 Packages/manifest.json");
             AppendCheck(items, File.Exists("ProjectSettings/HybridCLRSettings.asset"), "HybridCLR Settings", "HybridCLRSettings.asset 已找到", "未找到 HybridCLRSettings.asset");
             AppendCheck(items, ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetSettings(out _), "YooAsset Settings", "YooAssetSettings.asset 已在 Resources 下找到", "未找到 Resources/YooAssetSettings.asset，可执行快速设置创建");
@@ -37,6 +38,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
             AppendHybridClrInstallerCheck(items);
 
+            // ForgeCLR 自身配置检测：Project Settings、Runtime SO 和 YooAssets Collector 必须互相指向同一个包。
             AppendCheck(items, settings.RuntimeSettings != null, "运行时配置 SO", "ForgeCLR Project Settings 已引用运行时 SO", "ForgeCLR Project Settings 未引用运行时 SO，可执行快速设置创建");
             AppendCheck(items, HasRuntimePackageInCollector(settings.RuntimeSettings, collectorSetting), "YooAssets Package", "运行时资源包名称存在于 YooAssets Collector 配置中", "运行时资源包名称未在 YooAssets Collector 配置中找到");
             AppendCheck(items, IsValidFolderName(settings.DllCopyDirectoryName), "DLL 拷贝根目录名", $"DLL 拷贝根目录名有效：{settings.DllCopyDirectoryName}", "DLL 拷贝根目录名不能为空，也不能包含路径分隔符");
@@ -49,6 +51,7 @@ namespace VoyageForge.ForgeCLR.Editor
                     HasCollectorForPath(settings.RuntimeSettings, collectorSetting, settings.RuntimeSettings.StartupSceneLocation));
             AppendCheck(items, startupSceneCollected, "启动场景 AB 收集", "启动场景已加入当前 YooAssets 包，或已关闭自动加载首场景", "启动场景尚未加入当前 YooAssets 包，可点击修复补齐");
 
+            // 软件包入口检测：Launcher 场景必须存在，并且应该是 Build Settings 中第一个启用场景。
             AppendCheck(items, AssetDatabase.LoadAssetAtPath<SceneAsset>(settings.LauncherSceneLocation) != null, "Launcher 场景", $"Launcher 场景存在：{settings.LauncherSceneLocation}", "Launcher 场景不存在，请在 Project Settings 中选择有效场景");
             AppendCheck(items, IsLauncherSceneFirstInBuildSettings(settings.LauncherSceneLocation), "Launcher Build Settings", "Launcher 场景已位于 Build Settings 第一位", "Launcher 场景未位于 Build Settings 第一位，可点击修复");
             AppendFileServerChecks(items, settings);
@@ -123,15 +126,18 @@ namespace VoyageForge.ForgeCLR.Editor
             switch (title)
             {
                 case "YooAsset Settings":
+                    // YooAssetSettings 是运行时初始化 YooAssets 的基础配置，必须在 Resources 下。
                     ForgeCLRRuntimeSettingsEditorUtility.EnsureYooAssetSettings();
                     break;
                 case "YooAssets Collector":
+                    // Collector 也固定放在 Resources 下，确保编辑器和运行时读取路径一致。
                     ForgeCLRRuntimeSettingsEditorUtility.EnsureYooAssetCollectorSetting();
                     break;
                 case "运行时配置 SO":
                     ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
                     break;
                 case "YooAssets Package":
+                    // 包名修复会同时补齐 Collector 和 Runtime SO，避免只改一边。
                     ForgeCLRQuickSetup.EnsureYooAssetCollectorConfiguration();
                     ForgeCLRRuntimeSettingsEditorUtility.AutoFillRuntimeSettings();
                     break;
@@ -149,6 +155,7 @@ namespace VoyageForge.ForgeCLR.Editor
                 case "热更新 DLL AB 收集":
                 case "AOT 元数据 DLL AB 收集":
                 case "启动场景 AB 收集":
+                    // Collector 修复只处理 ForgeCLR 管辖的目录和启动场景，不覆盖 YooAssets 其它用户配置。
                     ForgeCLRQuickSetup.EnsureYooAssetCollectorConfiguration();
                     break;
                 case "Launcher Build Settings":

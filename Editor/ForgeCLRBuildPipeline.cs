@@ -40,6 +40,8 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             var target = EditorUserBuildSettings.activeBuildTarget;
 
+            // 资源包构建依赖 HybridCLR、YooAssets 和 UniTask，但不执行 Generate/All。
+            // Generate/All 会生成主包构建数据，应放在软件包构建流程中执行。
             ValidateEnvironment(true);
 
             Debug.Log("<color=red>[ForgeCLR] 编译 HybridCLR 热更新 DLL。</color>");
@@ -76,10 +78,13 @@ namespace VoyageForge.ForgeCLR.Editor
             var target = EditorUserBuildSettings.activeBuildTarget;
             ValidateEnvironment(true);
 
+            // 软件包必须从 Launcher 场景启动，否则运行时补丁流程和首场景加载不会执行。
             Debug.Log("[ForgeCLR] 检查 Launcher 场景和 Build Settings。");
             ForgeCLRValidationUtility.EnsureLauncherSceneInBuildSettings();
             ForgeCLRValidationUtility.ValidateForBuild("软件包构建");
 
+            // 先读取 Unity Build Settings 当前配置，让用户确认实际输出路径和构建选项。
+            // 这样 ForgeCLR 不额外维护平台、Development Build 或输出目录配置。
             var options = BuildPlayerWindow.DefaultBuildMethods.GetBuildPlayerOptions(new BuildPlayerOptions
             {
                 target = target,
@@ -98,6 +103,7 @@ namespace VoyageForge.ForgeCLR.Editor
                 return;
             }
 
+            // 确认后才执行 HybridCLR Generate/All，避免用户误点菜单就触发耗时生成和构建。
             Debug.Log("[ForgeCLR] 开始 HybridCLR Generate/All。");
             PrebuildCommand.GenerateAll();
 
@@ -155,6 +161,8 @@ namespace VoyageForge.ForgeCLR.Editor
                 ? "无启用场景"
                 : string.Join("\n", options.scenes.Select(scene => $"  - {scene}"));
             var message = new StringBuilder();
+            // 这里刻意展示 Unity 最终解析出的 BuildPlayerOptions，而不是 ForgeCLR 自己缓存的配置。
+            // 用户看到的摘要应与 Unity 实际构建参数一致。
             message.AppendLine("即将执行 ForgeCLR 软件包构建：");
             message.AppendLine();
             message.AppendLine($"平台：{options.target}");

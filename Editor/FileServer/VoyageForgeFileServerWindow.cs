@@ -72,9 +72,26 @@ namespace VoyageForge.ForgeCLR.Editor
         private Label healthMessageLabel;
         private Label ipHelpLabel;
         private TextField logField;
+
+        /// <summary>
+        /// 启动按钮；服务器运行时禁用，避免重复 Start。
+        /// </summary>
         private Button startButton;
+
+        /// <summary>
+        /// 停止按钮；服务器未运行时禁用，避免误导用户。
+        /// </summary>
         private Button stopButton;
+
+        /// <summary>
+        /// 复制当前访问地址按钮。
+        /// 未运行时复制“预计访问地址”，运行时复制服务器真实地址。
+        /// </summary>
         private Button copyUrlButton;
+
+        /// <summary>
+        /// 浏览器打开当前访问地址按钮。
+        /// </summary>
         private Button openUrlButton;
 
         /// <summary>
@@ -206,6 +223,7 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             rootDirectoryField?.RegisterValueChangedCallback(evt =>
             {
+                // TextField 修改立即写入 Project Settings，避免窗口关闭或域重载时丢失配置。
                 rootDirectory = evt.newValue;
                 SaveSettings();
                 RefreshStatus();
@@ -213,6 +231,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
             portField?.RegisterValueChangedCallback(evt =>
             {
+                // UI 输入层先限制端口范围，真正启动前仍会再做一次校验。
                 port = Mathf.Clamp(evt.newValue, 1, 65535);
                 SaveSettings();
                 RefreshStatus();
@@ -581,15 +600,18 @@ namespace VoyageForge.ForgeCLR.Editor
 
             if (port <= 0 || port > 65535)
             {
+                // 端口非法属于必须修复的问题，用失败状态提示。
                 failed = true;
                 messages.Add("端口超出 1 - 65535 范围");
             }
             else if (IsCurrentPortAvailable())
             {
+                // 当前服务器正在使用该端口时也算可用，避免运行中被误判为端口占用。
                 messages.Add($"端口 {port} 可用");
             }
             else
             {
+                // 端口被其他进程占用不一定阻断配置保存，但会阻断启动，所以用提醒状态。
                 warning = true;
                 messages.Add($"端口 {port} 已被占用");
             }
@@ -597,6 +619,7 @@ namespace VoyageForge.ForgeCLR.Editor
             var selectedIp = ipList.FirstOrDefault(candidate => candidate.Address == bindIPAddress);
             if (selectedIp != null && selectedIp.IsVirtualLike)
             {
+                // 虚拟网卡在本机能访问，但手机或其他设备往往访问不到，给黄色提醒。
                 warning = true;
                 messages.Add("绑定 IP 疑似虚拟网卡");
             }

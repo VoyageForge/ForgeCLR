@@ -31,6 +31,58 @@ ForgeCLR 只配置自己负责的内容：
 
 `运行时配置 SO` 引用由 ForgeCLR 快速设置自动创建和维护，在面板中是只读字段，避免手动替换导致一键构建填错配置。
 
+## 配置项详解
+
+### 运行时配置 SO
+
+`ForgeCLRRuntimeSettings` 是运行时真正读取的配置，默认路径为：
+
+`Assets/Resources/VoyageForge/Config/ForgeCLRRuntimeSettings.asset`
+
+运行时由 `Launcher` 通过 Resources 加载。它保存 YooAssets 包名、PlayMode、AOT 元数据 DLL 路径、热更新 DLL 路径、是否加载首场景和首场景路径。Project Settings 里的 `运行时配置 SO` 字段只读，避免手动换成另一个 SO 后，一键构建填充到错误资产里。
+
+### DLL 拷贝目录
+
+Project Settings 中只允许修改中间目录名，例如默认 `HotUpdateDll`。最终路径固定为：
+
+- 热更新程序集：`Assets/{目录名}/HotUpdateDll`
+- AOT 元数据：`Assets/{目录名}/MetadataDll`
+
+这样做是为了让构建流程、环境检测、YooAssets Collector 和运行时配置的路径规则保持一致。构建资源包时会把目录中的 `.dll.bytes` 写入 `ForgeCLRRuntimeSettings`，运行时再通过 YooAssets 加载。
+
+### Launcher 场景与启动场景
+
+这两个场景承担不同职责：
+
+- `Launcher 场景`：Unity 软件包启动的第一个场景，通常只放 `Launcher`、加载界面和必要的启动 UI。构建软件包前会自动放到 Build Settings 第一位。
+- `启动场景地址`：热更新程序集和资源包准备完成后加载的第一个业务场景。它需要被 YooAssets Collector 收集，保存的是完整资源路径，例如 `Assets/Scenes/Main.unity`。
+
+如果关闭 `启动后加载首场景`，环境检测不会再把“启动场景 AB 收集”作为阻断项。
+
+### 局域网文件服务器
+
+文件服务器配置保存在 `ProjectSettings/ForgeCLRSettings.asset`，不会写入 `EditorPrefs`。这样团队成员可以共享默认根目录、端口、绑定 IP 和自动恢复开关。
+
+入口：
+
+`VoyageForge/ForgeCLR/File Server`
+
+窗口使用 UI Toolkit，界面文件位于：
+
+- `Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uxml`
+- `Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uss`
+
+字段说明：
+
+- `根目录`：文件服务器暴露给局域网设备访问的目录，默认是项目根目录下的 `Bundles`。
+- `端口`：HTTP 监听端口，默认 `8899`。端口被占用时可以点击 `自动端口` 查找可用端口。
+- `绑定 IP`：为空时监听 `0.0.0.0`，适合大多数局域网调试；如果绑定到具体 IP，应优先选择 Wi-Fi 或 Ethernet 网卡。
+- `域重载后自动恢复服务器`：进入 Play Mode 或脚本编译导致域重载后，如果服务器之前处于运行状态，会尝试自动恢复。
+
+窗口顶部的 `配置自检` 会检查根目录、端口和绑定 IP。绿色表示可以直接启动；黄色通常表示端口占用或疑似虚拟网卡；红色表示根目录不存在或端口非法。
+
+真机 HostPlayMode 测试时，把 Bridge 的 `Assets` 端点设置为文件服务器显示的访问地址。局域网设备无法访问时，优先检查 Windows 防火墙是否允许 Unity Editor 入站 TCP。
+
 YooAssets 需要两个配置文件，ForgeCLR 会在快速设置和环境检测中检查它们：
 
 - `Assets/Resources/YooAssetSettings.asset`
@@ -117,6 +169,8 @@ HybridCLR 的“程序集集合”分成两类理解：
 
 软件包构建只负责主包，资源包仍通过 `构建资源包` 单独生成。
 
+构建开始前会弹出确认窗口，显示 BuildTarget、输出路径、Development Build、BuildOptions 和启用场景列表。点击取消时不会执行 `HybridCLR/Generate/All`，避免误触发长时间构建。
+
 `VoyageForge/ForgeCLR/打开 Unity Build 面板`
 
 打开 Unity Build Settings 面板。软件包平台、场景、输出路径、Development Build 等配置全部由 Unity 自己管理。
@@ -137,6 +191,37 @@ HybridCLR 的“程序集集合”分成两类理解：
 5. 打开 `VoyageForge/ForgeCLR/File Server`，确认配置自检通过后启动局域网文件服务器。
 6. 如果要真机 HostPlayMode 测试，把 Bridge 的 `Assets` 地址指向文件服务器显示的访问地址。
 7. 运行 `VoyageForge/ForgeCLR/构建软件包`，确认弹窗里的平台、输出路径、Development Build 和场景列表后开始构建。
+
+## 检测与修复扩展
+
+环境检测统一放在 `ForgeCLRValidationUtility` 中，Project Settings、快速设置和构建前检查都复用同一份逻辑。
+
+新增检测项时建议按这个顺序处理：
+
+1. 在 `CreateReport()` 中追加检测项，明确通过、警告或失败的条件。
+2. 如果检测项可以自动修复，在 `CanRepair()` 中加入标题。
+3. 在 `TryRepair()` 中实现修复逻辑，例如创建目录、补齐 Collector、校正 Build Settings。
+4. 如果检测项会影响构建，在 `ValidateForBuild()` 的失败项中保留为 `Failed`；如果只是提醒，用 `Warning`。
+
+检测项标题同时用于 Project Settings 卡片上的“修复”按钮，所以标题需要稳定，不要随意改名。
+
+## 常见问题
+
+### 资源包构建为什么不调用 HybridCLR/Generate/All？
+
+`HybridCLR/Generate/All` 会生成主包构建所需的 AOT 裁剪数据和桥接数据，更适合软件包构建前执行。资源包构建只需要编译热更新 DLL、拷贝 DLL 并打 AB。如果在资源包流程里调用完整 Generate，可能导致空包内程序集数据和当前 DLL 内容不一致。
+
+### 为什么 DLL 要打成 .dll.bytes？
+
+Unity 会把 `.dll` 识别为托管程序集，容易被编辑器导入和编译。改成 `.dll.bytes` 后可以作为普通二进制资源交给 YooAssets 收集，运行时再读取 bytes 加载。
+
+### 为什么 AssetBundleCollectorSetting 必须在 Resources 下？
+
+ForgeCLR 需要同时在编辑器配置、自动检测和运行时加载路径上保持一致。放在 `Assets/Resources/AssetBundleCollectorSetting.asset` 可以避免编辑器和运行时读到不同配置。
+
+### 文件服务器启动成功但手机访问不到怎么办？
+
+先确认手机和电脑在同一个局域网，访问地址不要使用 `0.0.0.0`，要使用窗口显示的真实 IP。然后检查 Windows 防火墙，允许 Unity Editor 通过专用网络的入站 TCP 访问。VPN 或虚拟网卡较多时，优先绑定 Wi-Fi / Ethernet 的 IP。
 
 ## 待改进
 1. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。
