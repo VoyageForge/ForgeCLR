@@ -23,9 +23,11 @@ ForgeCLR 只配置自己负责的内容：
 
 - `运行时配置 SO`：一键构建资源包时要自动填充的 `ForgeCLRRuntimeSettings`。
 - `YooAssets 包`：包名来自项目中的 YooAssets Collector 配置文件，通过下拉框选择。
+- `Launcher 场景`：软件包启动时的第一场景，构建软件包前会自动放到 Unity Build Settings 第一位。
 - `DLL 拷贝根目录名`：只允许配置 `Assets` 下的中间目录名，默认 `HotUpdateDll`。最终路径固定为 `Assets/{目录名}/HotUpdateDll` 和 `Assets/{目录名}/MetadataDll`。
 - `启动后加载首场景`：热更新程序集加载完成后是否自动加载第一个业务场景。
 - `启动场景地址`：通过下拉框选择项目中的 `.unity` 场景资源，并保存完整资源路径。
+- `局域网文件服务器`：保存资源包测试服务器的根目录、端口、绑定 IP 和域重载自动恢复开关，配置写入 `ProjectSettings/ForgeCLRSettings.asset`。
 
 `运行时配置 SO` 引用由 ForgeCLR 快速设置自动创建和维护，在面板中是只读字段，避免手动替换导致一键构建填错配置。
 
@@ -50,6 +52,8 @@ YooAssets 需要两个配置文件，ForgeCLR 会在快速设置和环境检测�
 - 热更新 DLL 目录：`Assets/{目录名}/HotUpdateDll`
 - AOT 元数据 DLL 目录：`Assets/{目录名}/MetadataDll`
 - 首场景：`Assets/Scenes/Main.unity`
+- Launcher 场景：`Assets/ForgeCLR/Scenes/Launcher.unity` 会被放到 Build Settings 第一位。
+- 文件服务器根目录：默认使用项目根目录下的 `Bundles`，用于局域网设备访问 YooAssets 输出资源。
 
 如果项目中没有 YooAssetSettings 或 YooAssets Collector 配置，快速设置会创建默认配置到 `Assets/Resources`。如果 Collector 配置中已经有 Package，ForgeCLR 会优先使用配置中的包名；只有配置中没有 Package 时才创建 `DefaultPackage`。
 
@@ -93,13 +97,25 @@ HybridCLR 的“程序集集合”分成两类理解：
 
 完整资源包流程：
 
-1. 调用 `HybridCLR/Generate/All` 对应 API。
-2. 编译当前平台热更新 DLL。
-3. 拷贝热更新 DLL 和 AOT 元数据 DLL 到 Project Settings 配置目录。
-4. 自动填充 Project Settings 引用的 `ForgeCLRRuntimeSettings` 中的 PackageName、热更新 DLL 完整路径列表、AOT 元数据 DLL 完整路径列表和首场景路径。
-5. 读取 YooAssets Collector 中配置的 Package。
-6. 读取 YooAssets Builder 中每个 Package 的构建管线和构建参数。
-7. 调用 YooAssets 构建 AB。
+1. 编译当前平台热更新 DLL。
+2. 拷贝热更新 DLL 和 AOT 元数据 DLL 到 Project Settings 配置目录。
+3. 自动填充 Project Settings 引用的 `ForgeCLRRuntimeSettings` 中的 PackageName、热更新 DLL 完整路径列表、AOT 元数据 DLL 完整路径列表和首场景路径。
+4. 检查并补齐 YooAssets Collector 中的 ForgeCLR 分组。
+5. 读取 YooAssets Builder 中每个 Package 的构建管线和构建参数。
+6. 调用 YooAssets 构建 AB。
+
+资源包构建不会调用 `HybridCLR/Generate/All`，避免软件包裁剪数据和当前资源包 DLL 内容错位。
+
+`VoyageForge/ForgeCLR/构建软件包`
+
+完整软件包流程：
+
+1. 执行 ForgeCLR 环境检测。
+2. 将 Project Settings 中配置的 Launcher 场景放到 Unity Build Settings 第一位。
+3. 调用 `HybridCLR/Generate/All`，生成主包构建所需的 HybridCLR 数据。
+4. 复用 Unity Build Settings 当前的平台、输出路径和 Development Build 等配置执行软件包构建。
+
+软件包构建只负责主包，资源包仍通过 `构建资源包` 单独生成。
 
 `VoyageForge/ForgeCLR/打开 Unity Build 面板`
 
@@ -110,17 +126,20 @@ HybridCLR 的“程序集集合”分成两类理解：
 1. 先配置 HybridCLR 热更新程序集。
 2. 运行 `VoyageForge/ForgeCLR/快速设置`，自动创建默认场景并补齐 YooAssets Collector。
 3. 运行 `VoyageForge/ForgeCLR/构建资源包`。
-4. 资源包验证通过后，再打开 Unity Build Settings 面板构建软件包。
+4. 资源包验证通过后，运行 `VoyageForge/ForgeCLR/构建软件包` 或打开 Unity Build Settings 面板构建软件包。
+
+## 首次启动流程
+
+1. 打开 `Edit/Project Settings/VoyageForge/ForgeCLR`，确认 `运行时配置 SO`、`YooAssets 包`、`Launcher 场景` 和 `启动场景地址`。
+2. 打开 `Edit/Project Settings/VoyageForge/Bridge`，确认默认环境为 `dev`，并为 `Assets` 端点配置资源服务器地址。
+3. 运行 `VoyageForge/ForgeCLR/快速设置`，创建默认目录、默认首场景、运行时配置和 YooAssets 基础配置。
+4. 运行 `VoyageForge/ForgeCLR/构建资源包`，生成热更新 DLL、AOT 元数据 DLL 和 YooAssets 资源包。
+5. 打开 `VoyageForge/ForgeCLR/File Server`，确认配置自检通过后启动局域网文件服务器。
+6. 如果要真机 HostPlayMode 测试，把 Bridge 的 `Assets` 地址指向文件服务器显示的访问地址。
+7. 运行 `VoyageForge/ForgeCLR/构建软件包`，确认弹窗里的平台、输出路径、Development Build 和场景列表后开始构建。
 
 ## 待改进
-1. 构建软件包前增加更完整的运行前检查，例如首场景是否已经被 YooAssets 收集。
-2. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。
-3. 已经 将 FCLR 的配置放入Resources/VoyageForge/Config/ForgeCLRRuntimeSettings.asset，已经调整了Launcher 相关代码。
-4. 打包前需要检测 FCLR 的配置是否存在，且正确配置。
-5. 目前保存的 场景名称还是名称，需改为保存完整资源路径，同时添加场景自定义配置。
-6. 如果是 android 平台 yooassets 需要 检查 配置启动项 -force-gles
-7. android 使用LoadRawFileAsync ，会从 android 内置包去加载资源，导致加载失败
-8. 构建资源包 不应该调用 PrebuildCommand.GenerateAll()，这回导致空包内程序集数据和现有数据不一致，应在构建软件包时调用
-9. 添加局域网文件服务器，用于在不同设备上测试资源包加载
-10. 已添加建议文件服务器 VoyageForgeFileServer，需要将配置保存到 projectsetting待完成，需要配合防火墙中关于UnityEditor的进出策略，unity入站tcp端口全公开
-11. 添加文件服务器 域重载， 待整理 UI ，配置项, 自动调整 IP 地址
+1. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。
+2. Android 真机测试仍需要结合项目实际图形 API 和启动参数确认是否使用 `-force-gles`。
+3. 文件服务器的 Windows 防火墙策略仍需由使用者在系统层允许 Unity Editor 的入站 TCP 访问。
+4. 后续新增检测项时优先追加到 `ForgeCLRValidationUtility`，避免构建、快速设置和 Project Settings 三处逻辑分散。

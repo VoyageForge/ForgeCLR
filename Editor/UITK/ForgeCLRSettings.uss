@@ -51,6 +51,11 @@
     margin-top: 2px;
 }
 
+.fclr-file-server-container {
+    margin-top: 2px;
+    margin-bottom: 8px;
+}
+
 .fclr-path-title {
     color: rgb(201, 209, 217);
     -unity-font-style: bold;
@@ -61,6 +66,22 @@
 .fclr-path-label {
     color: rgb(170, 179, 186);
     margin-bottom: 3px;
+}
+
+.fclr-inline-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.fclr-inline-grow {
+    flex-grow: 1;
+}
+
+.fclr-small-button {
+    min-width: 86px;
+    height: 24px;
+    margin-left: 8px;
 }
 
 .fclr-button-row {

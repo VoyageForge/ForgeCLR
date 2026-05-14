@@ -1,451 +1,676 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace VoyageForge.ForgeCLR.Editor
 {
-    public class VoyageForgeFileServerWindow : EditorWindow
+    /// <summary>
+    /// VoyageForge 局域网文件服务器窗口。
+    /// 窗口使用 UI Toolkit，配置统一读写 ForgeCLR Project Settings。
+    /// </summary>
+    public sealed class VoyageForgeFileServerWindow : EditorWindow
     {
-        private const string PrefRootDirectory = "VoyageForge_ForgeCLR_FileServer_RootDirectory";
-        private const string PrefPort = "VoyageForge_ForgeCLR_FileServer_Port";
-        private const string PrefBindIPAddress = "VoyageForge_ForgeCLR_FileServer_BindIPAddress";
+        /// <summary>
+        /// 文件服务器窗口 UXML 布局路径。
+        /// </summary>
+        private const string UxmlPath = "Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uxml";
 
+        /// <summary>
+        /// 文件服务器窗口 USS 样式路径。
+        /// </summary>
+        private const string UssPath = "Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uss";
+
+        /// <summary>
+        /// 当前共享的文件服务器实例。
+        /// </summary>
         private VoyageForgeFileServer Server => VoyageForgeFileServerSingleton.Server;
 
-        private string _rootDirectory;
-        private int _port;
-        private string _bindIPAddress;
+        /// <summary>
+        /// 当前编辑中的根目录。
+        /// </summary>
+        private string rootDirectory;
 
-        private List<VoyageForgeIPAddressInfo> _ipList = new List<VoyageForgeIPAddressInfo>();
-        private string[] _ipDisplayNames = Array.Empty<string>();
-        private int _selectedIPIndex;
+        /// <summary>
+        /// 当前编辑中的端口。
+        /// </summary>
+        private int port;
 
-        private Vector2 _scroll;
-        private readonly StringBuilder _logBuilder = new StringBuilder();
+        /// <summary>
+        /// 当前编辑中的绑定 IP；空字符串代表监听所有网卡。
+        /// </summary>
+        private string bindIPAddress;
 
+        /// <summary>
+        /// 本机可选 IPv4 列表。
+        /// </summary>
+        private List<VoyageForgeIPAddressInfo> ipList = new();
+
+        /// <summary>
+        /// 下拉框显示文本到实际 IP 的映射。
+        /// </summary>
+        private readonly List<KeyValuePair<string, string>> ipOptions = new();
+
+        /// <summary>
+        /// 窗口日志内容。
+        /// </summary>
+        private readonly StringBuilder logBuilder = new();
+
+        private TextField rootDirectoryField;
+        private IntegerField portField;
+        private PopupField<string> bindIpPopup;
+        private Toggle autoRestartToggle;
+        private Label statusBadge;
+        private Label serverUrlLabel;
+        private Label rootStatusLabel;
+        private Label bindAddressLabel;
+        private Label healthBadge;
+        private Label healthMessageLabel;
+        private Label ipHelpLabel;
+        private TextField logField;
+        private Button startButton;
+        private Button stopButton;
+        private Button copyUrlButton;
+        private Button openUrlButton;
+
+        /// <summary>
+        /// 打开 VoyageForge 文件服务器窗口。
+        /// </summary>
         [MenuItem("VoyageForge/ForgeCLR/File Server")]
         public static void Open()
         {
-            VoyageForgeFileServerWindow window = GetWindow<VoyageForgeFileServerWindow>();
+            var window = GetWindow<VoyageForgeFileServerWindow>();
             window.titleContent = new GUIContent("VoyageForge File Server");
-            window.minSize = new Vector2(660, 560);
+            window.minSize = new Vector2(720, 620);
             window.Show();
         }
 
+        /// <summary>
+        /// 窗口启用时读取 Project Settings 并订阅服务器日志。
+        /// </summary>
         private void OnEnable()
         {
-            _rootDirectory = EditorPrefs.GetString(PrefRootDirectory, Application.dataPath);
-            _port = EditorPrefs.GetInt(PrefPort, 8899);
-            _bindIPAddress = EditorPrefs.GetString(PrefBindIPAddress, string.Empty);
-
-            RefreshIPList();
+            LoadSettings();
 
             if (Server != null)
+            {
                 Server.OnLog += AppendLog;
+            }
+        }
 
+        /// <summary>
+        /// 窗口关闭或脚本重载前保存配置并取消日志订阅。
+        /// </summary>
+        private void OnDisable()
+        {
+            SaveSettings();
+
+            if (Server != null)
+            {
+                Server.OnLog -= AppendLog;
+            }
+        }
+
+        /// <summary>
+        /// 创建 UI Toolkit 界面。
+        /// </summary>
+        public void CreateGUI()
+        {
+            rootVisualElement.Clear();
+            LoadVisualTree();
+            QueryElements();
+            RefreshIPList();
+            BindInitialValues();
+            RegisterCallbacks();
+            RefreshStatus();
             AppendLog("VoyageForge File Server Window 已打开。");
         }
 
-        private void OnDisable()
+        /// <summary>
+        /// 加载 UXML 和 USS。
+        /// </summary>
+        private void LoadVisualTree()
         {
-            EditorPrefs.SetString(PrefRootDirectory, _rootDirectory);
-            EditorPrefs.SetInt(PrefPort, _port);
-            EditorPrefs.SetString(PrefBindIPAddress, _bindIPAddress);
-
-            if (Server != null)
-                Server.OnLog -= AppendLog;
-        }
-
-        private void OnGUI()
-        {
-            DrawHeader();
-            EditorGUILayout.Space(8);
-            DrawConfig();
-            EditorGUILayout.Space(8);
-            DrawStatus();
-            EditorGUILayout.Space(8);
-            DrawButtons();
-            EditorGUILayout.Space(8);
-            DrawAutoRestart();
-            EditorGUILayout.Space(8);
-            DrawLog();
-        }
-
-        private void DrawHeader()
-        {
-            EditorGUILayout.LabelField("VoyageForge 局域网文件服务器", EditorStyles.boldLabel);
-
-            EditorGUILayout.HelpBox(
-                "启动后，同一局域网内设备可以通过 IP 地址访问并下载根目录下的文件。\n" +
-                "如果开启了 VPN，建议选择 0.0.0.0 监听所有网卡，然后使用推荐访问地址。\n" +
-                "如果局域网设备无法访问，请在 Windows 防火墙中允许 Unity Editor 通过专用网络。",
-                MessageType.Info);
-        }
-
-        private void DrawConfig()
-        {
-            EditorGUILayout.LabelField("配置", EditorStyles.boldLabel);
-
-            using (new EditorGUILayout.HorizontalScope())
+            var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
+            if (visualTree == null)
             {
-                EditorGUILayout.LabelField("根目录", GUILayout.Width(80));
-                _rootDirectory = EditorGUILayout.TextField(_rootDirectory);
-
-                if (GUILayout.Button("选择", GUILayout.Width(60)))
-                {
-                    string selected = EditorUtility.OpenFolderPanel("选择 VoyageForge 文件服务器根目录", _rootDirectory, "");
-
-                    if (!string.IsNullOrEmpty(selected))
-                    {
-                        _rootDirectory = selected;
-                        EditorPrefs.SetString(PrefRootDirectory, _rootDirectory);
-                    }
-                }
+                rootVisualElement.Add(new Label($"未找到文件服务器窗口 UXML：{UxmlPath}"));
+                return;
             }
 
-            using (new EditorGUILayout.HorizontalScope())
+            visualTree.CloneTree(rootVisualElement);
+            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
+            if (styleSheet != null)
             {
-                EditorGUILayout.LabelField("端口", GUILayout.Width(80));
-                _port = EditorGUILayout.IntField(_port);
-
-                if (GUILayout.Button("检测端口", GUILayout.Width(90)))
-                    CheckPort();
-
-                if (GUILayout.Button("自动查找", GUILayout.Width(90)))
-                    AutoFindPort();
-            }
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.LabelField("绑定 IP", GUILayout.Width(80));
-
-                if (_ipDisplayNames == null || _ipDisplayNames.Length == 0)
-                    RefreshIPList();
-
-                int newIndex = EditorGUILayout.Popup(_selectedIPIndex, _ipDisplayNames);
-
-                if (newIndex != _selectedIPIndex)
-                {
-                    _selectedIPIndex = newIndex;
-                    _bindIPAddress = GetSelectedBindIP();
-                    EditorPrefs.SetString(PrefBindIPAddress, _bindIPAddress);
-                }
-
-                if (GUILayout.Button("刷新", GUILayout.Width(60)))
-                    RefreshIPList();
-            }
-
-            DrawIPHelpBox();
-        }
-
-        private void DrawIPHelpBox()
-        {
-            string selectedBindIP = GetSelectedBindIP();
-
-            if (string.IsNullOrWhiteSpace(selectedBindIP))
-            {
-                string recommendIP = VoyageForgeFileServer.GetRecommendedLocalIPv4();
-
-                EditorGUILayout.HelpBox(
-                    $"当前选择：监听所有网卡 0.0.0.0\n" +
-                    $"访问时不要使用 0.0.0.0，请使用：\n" +
-                    $"http://{recommendIP}:{_port}/",
-                    MessageType.None);
-            }
-            else
-            {
-                VoyageForgeIPAddressInfo info = GetSelectedIPInfo();
-
-                if (info != null && info.IsVirtualLike)
-                {
-                    EditorGUILayout.HelpBox(
-                        $"当前选择的 IP 疑似虚拟网卡：{selectedBindIP}\n" +
-                        $"如果你要让手机或局域网内其他电脑访问，建议选择 Wi-Fi / Ethernet 的真实局域网 IP，或者选择 0.0.0.0。",
-                        MessageType.Warning);
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox(
-                        $"当前访问地址：\nhttp://{selectedBindIP}:{_port}/",
-                        MessageType.None);
-                }
+                rootVisualElement.styleSheets.Add(styleSheet);
             }
         }
 
-        private void DrawStatus()
+        /// <summary>
+        /// 查询 UXML 中需要绑定的控件。
+        /// </summary>
+        private void QueryElements()
         {
-            EditorGUILayout.LabelField("状态", EditorStyles.boldLabel);
+            rootDirectoryField = rootVisualElement.Q<TextField>("RootDirectoryField");
+            portField = rootVisualElement.Q<IntegerField>("PortField");
+            autoRestartToggle = rootVisualElement.Q<Toggle>("AutoRestartToggle");
+            statusBadge = rootVisualElement.Q<Label>("StatusBadge");
+            serverUrlLabel = rootVisualElement.Q<Label>("ServerUrlLabel");
+            rootStatusLabel = rootVisualElement.Q<Label>("RootStatusLabel");
+            bindAddressLabel = rootVisualElement.Q<Label>("BindAddressLabel");
+            healthBadge = rootVisualElement.Q<Label>("HealthBadge");
+            healthMessageLabel = rootVisualElement.Q<Label>("HealthMessageLabel");
+            ipHelpLabel = rootVisualElement.Q<Label>("IpHelpLabel");
+            logField = rootVisualElement.Q<TextField>("LogField");
+            startButton = rootVisualElement.Q<Button>("StartButton");
+            stopButton = rootVisualElement.Q<Button>("StopButton");
+            copyUrlButton = rootVisualElement.Q<Button>("CopyUrlButton");
+            openUrlButton = rootVisualElement.Q<Button>("OpenUrlButton");
+        }
 
-            bool running = Server != null && Server.IsRunning;
-
-            EditorGUILayout.LabelField("运行状态", running ? "运行中" : "未启动");
-
-            if (running)
+        /// <summary>
+        /// 把 Project Settings 中的值写入控件。
+        /// </summary>
+        private void BindInitialValues()
+        {
+            if (rootDirectoryField != null)
             {
-                EditorGUILayout.LabelField("绑定 IP", string.IsNullOrWhiteSpace(Server.BindIPAddress) ? "0.0.0.0" : Server.BindIPAddress);
-                EditorGUILayout.LabelField("访问 IP", Server.LocalIPAddress);
-                EditorGUILayout.LabelField("访问地址", Server.ServerUrl);
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button("复制访问地址"))
-                    {
-                        EditorGUIUtility.systemCopyBuffer = Server.ServerUrl;
-                        AppendLog($"已复制地址: {Server.ServerUrl}");
-                    }
-
-                    if (GUILayout.Button("浏览器打开"))
-                    {
-                        Application.OpenURL(Server.ServerUrl);
-                    }
-                }
+                rootDirectoryField.value = rootDirectory;
             }
-            else
+
+            if (portField != null)
             {
-                string selectedBindIP = GetSelectedBindIP();
+                portField.value = port;
+            }
 
-                if (string.IsNullOrWhiteSpace(selectedBindIP))
-                {
-                    string recommendIP = VoyageForgeFileServer.GetRecommendedLocalIPv4();
+            if (autoRestartToggle != null)
+            {
+                autoRestartToggle.value = VoyageForgeFileServerSingleton.AutoRestart;
+            }
 
-                    EditorGUILayout.LabelField("绑定地址", "0.0.0.0");
-                    EditorGUILayout.LabelField("推荐访问地址", $"http://{recommendIP}:{_port}/");
-                }
-                else
-                {
-                    EditorGUILayout.LabelField("绑定地址", selectedBindIP);
-                    EditorGUILayout.LabelField("预计访问地址", $"http://{selectedBindIP}:{_port}/");
-                }
+            if (logField != null)
+            {
+                logField.isReadOnly = true;
+                logField.value = logBuilder.ToString();
             }
         }
 
-        private void DrawButtons()
+        /// <summary>
+        /// 注册 UI 事件。
+        /// </summary>
+        private void RegisterCallbacks()
         {
-            using (new EditorGUILayout.HorizontalScope())
+            rootDirectoryField?.RegisterValueChangedCallback(evt =>
             {
-                GUI.enabled = Server == null || !Server.IsRunning;
+                rootDirectory = evt.newValue;
+                SaveSettings();
+                RefreshStatus();
+            });
 
-                if (GUILayout.Button("启动服务器", GUILayout.Height(32)))
-                    StartServer();
+            portField?.RegisterValueChangedCallback(evt =>
+            {
+                port = Mathf.Clamp(evt.newValue, 1, 65535);
+                SaveSettings();
+                RefreshStatus();
+            });
 
-                GUI.enabled = Server != null && Server.IsRunning;
+            autoRestartToggle?.RegisterValueChangedCallback(evt =>
+            {
+                VoyageForgeFileServerSingleton.AutoRestart = evt.newValue;
+                AppendLog($"自动恢复服务器：{(evt.newValue ? "开启" : "关闭")}");
+            });
 
-                if (GUILayout.Button("停止服务器", GUILayout.Height(32)))
-                    StopServer();
+            rootVisualElement.Q<Button>("ChooseRootButton")?.RegisterCallback<ClickEvent>(_ => ChooseRootDirectory());
+            rootVisualElement.Q<Button>("OpenRootButton")?.RegisterCallback<ClickEvent>(_ => OpenRootDirectory());
+            rootVisualElement.Q<Button>("CheckPortButton")?.RegisterCallback<ClickEvent>(_ => CheckPort());
+            rootVisualElement.Q<Button>("AutoPortButton")?.RegisterCallback<ClickEvent>(_ => AutoFindPort());
+            rootVisualElement.Q<Button>("RefreshIpButton")?.RegisterCallback<ClickEvent>(_ =>
+            {
+                RefreshIPList();
+                RefreshStatus();
+            });
 
-                GUI.enabled = true;
-            }
+            startButton?.RegisterCallback<ClickEvent>(_ => StartServer());
+            stopButton?.RegisterCallback<ClickEvent>(_ => StopServer());
+            copyUrlButton?.RegisterCallback<ClickEvent>(_ => CopyServerUrl());
+            openUrlButton?.RegisterCallback<ClickEvent>(_ => OpenServerUrl());
+            rootVisualElement.Q<Button>("ClearLogButton")?.RegisterCallback<ClickEvent>(_ => ClearLog());
         }
 
-        private void DrawAutoRestart()
+        /// <summary>
+        /// 从 Project Settings 读取窗口配置。
+        /// </summary>
+        private void LoadSettings()
         {
-            bool oldAutoRestart = VoyageForgeFileServerSingleton.AutoRestart;
-
-            bool newAutoRestart = EditorGUILayout.ToggleLeft("自动恢复服务器，Play Mode / 编译后自动恢复", oldAutoRestart);
-
-            if (newAutoRestart != oldAutoRestart)
-            {
-                VoyageForgeFileServerSingleton.AutoRestart = newAutoRestart;
-                AppendLog($"自动恢复服务器: {(newAutoRestart ? "开启" : "关闭")}");
-            }
-
-            EditorGUILayout.HelpBox(
-                "关闭自动恢复后，进入 Play Mode 或编译脚本时，如果服务器因为 Domain Reload 停止，不会自动重启。\n" +
-                "开启自动恢复后，只有在你手动启动过服务器，并且没有点“停止服务器”的情况下，才会自动恢复。",
-                MessageType.None);
+            var settings = ForgeCLRSettings.instance;
+            rootDirectory = settings.FileServerRootDirectory;
+            port = settings.FileServerPort;
+            bindIPAddress = settings.FileServerBindIPAddress;
         }
 
-        private void DrawLog()
+        /// <summary>
+        /// 保存窗口配置到 Project Settings。
+        /// </summary>
+        private void SaveSettings()
         {
-            EditorGUILayout.LabelField("日志", EditorStyles.boldLabel);
-
-            _scroll = EditorGUILayout.BeginScrollView(_scroll, GUILayout.ExpandHeight(true));
-
-            EditorGUILayout.TextArea(_logBuilder.ToString(), GUILayout.ExpandHeight(true));
-
-            EditorGUILayout.EndScrollView();
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (GUILayout.Button("清空日志"))
-                    _logBuilder.Clear();
-            }
+            ForgeCLRSettings.instance.SetFileServerConfig(rootDirectory, port, bindIPAddress);
         }
 
+        /// <summary>
+        /// 刷新 IP 下拉框。
+        /// </summary>
+        private void RefreshIPList()
+        {
+            ipList = VoyageForgeFileServer.GetAllLocalIPv4();
+            ipOptions.Clear();
+            ipOptions.Add(new KeyValuePair<string, string>("0.0.0.0 - 监听所有网卡，推荐", string.Empty));
+
+            foreach (var info in ipList)
+            {
+                var tag = info.IsVirtualLike ? "疑似虚拟网卡" : "推荐";
+                ipOptions.Add(new KeyValuePair<string, string>(
+                    $"{info.Address} - {info.Name} - {info.NetworkType} - {tag}",
+                    info.Address));
+            }
+
+            RebuildBindIpPopup();
+        }
+
+        /// <summary>
+        /// 根据最新 IP 列表重建绑定 IP 下拉框。
+        /// </summary>
+        private void RebuildBindIpPopup()
+        {
+            var container = rootVisualElement.Q<VisualElement>("BindIpFieldContainer");
+            if (container == null)
+            {
+                return;
+            }
+
+            container.Clear();
+            var choices = ipOptions.Select(option => option.Key).ToList();
+            var current = ipOptions.FirstOrDefault(option => option.Value == bindIPAddress);
+            var currentValue = string.IsNullOrWhiteSpace(current.Key) ? choices[0] : current.Key;
+
+            bindIpPopup = new PopupField<string>("绑定 IP", choices, currentValue);
+            bindIpPopup.AddToClassList("vffs-field");
+            bindIpPopup.RegisterValueChangedCallback(evt =>
+            {
+                var option = ipOptions.FirstOrDefault(candidate => candidate.Key == evt.newValue);
+                bindIPAddress = option.Value ?? string.Empty;
+                SaveSettings();
+                RefreshStatus();
+            });
+            container.Add(bindIpPopup);
+        }
+
+        /// <summary>
+        /// 选择文件服务器根目录。
+        /// </summary>
+        private void ChooseRootDirectory()
+        {
+            var selected = EditorUtility.OpenFolderPanel("选择 VoyageForge 文件服务器根目录", rootDirectory, string.Empty);
+            if (string.IsNullOrWhiteSpace(selected))
+            {
+                return;
+            }
+
+            rootDirectory = selected;
+            rootDirectoryField?.SetValueWithoutNotify(rootDirectory);
+            SaveSettings();
+            RefreshStatus();
+        }
+
+        /// <summary>
+        /// 在系统文件管理器中打开当前文件服务器根目录。
+        /// </summary>
+        private void OpenRootDirectory()
+        {
+            if (Directory.Exists(rootDirectory) == false)
+            {
+                AppendLog($"无法打开根目录，目录不存在：{rootDirectory}");
+                return;
+            }
+
+            EditorUtility.RevealInFinder(rootDirectory);
+        }
+
+        /// <summary>
+        /// 检测当前端口是否可用。
+        /// </summary>
+        private void CheckPort()
+        {
+            if (port <= 0 || port > 65535)
+            {
+                AppendLog($"端口无效：{port}");
+                return;
+            }
+
+            var available = IsCurrentPortAvailable();
+            AppendLog(available ? $"端口 {port} 可用。" : $"端口 {port} 已被占用。");
+            RefreshStatus();
+        }
+
+        /// <summary>
+        /// 从当前端口开始查找可用端口。
+        /// </summary>
+        private void AutoFindPort()
+        {
+            var newPort = VoyageForgeFileServer.FindAvailablePort(port);
+            if (newPort <= 0)
+            {
+                AppendLog("没有找到可用端口。");
+                return;
+            }
+
+            port = newPort;
+            portField?.SetValueWithoutNotify(port);
+            SaveSettings();
+            RefreshStatus();
+            AppendLog($"找到可用端口：{port}");
+        }
+
+        /// <summary>
+        /// 启动局域网文件服务器。
+        /// </summary>
         private void StartServer()
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(_rootDirectory))
+                if (string.IsNullOrWhiteSpace(rootDirectory))
                 {
-                    EditorUtility.DisplayDialog("错误", "请选择根目录。", "确定");
+                    AppendLog("启动失败：请选择根目录。");
                     return;
                 }
 
-                if (!System.IO.Directory.Exists(_rootDirectory))
+                if (!Directory.Exists(rootDirectory))
                 {
-                    EditorUtility.DisplayDialog("错误", $"根目录不存在:\n{_rootDirectory}", "确定");
+                    AppendLog($"启动失败：根目录不存在：{rootDirectory}");
                     return;
                 }
 
-                if (_port <= 0 || _port > 65535)
+                if (port <= 0 || port > 65535)
                 {
-                    EditorUtility.DisplayDialog("错误", "端口号必须在 1 - 65535 之间。", "确定");
+                    AppendLog("启动失败：端口号必须在 1 - 65535 之间。");
                     return;
                 }
 
-                if (!VoyageForgeFileServer.IsPortAvailable(_port))
+                if (!IsCurrentPortAvailable())
                 {
-                    bool autoFind = EditorUtility.DisplayDialog(
-                        "端口被占用",
-                        $"端口 {_port} 已被占用，是否自动查找可用端口？",
-                        "自动查找",
-                        "取消");
-
-                    if (!autoFind)
-                        return;
-
-                    int newPort = VoyageForgeFileServer.FindAvailablePort(_port + 1);
-
+                    var newPort = VoyageForgeFileServer.FindAvailablePort(port + 1);
                     if (newPort <= 0)
                     {
-                        EditorUtility.DisplayDialog("错误", "没有找到可用端口。", "确定");
+                        AppendLog($"启动失败：端口 {port} 已被占用，且没有找到可用端口。");
                         return;
                     }
 
-                    _port = newPort;
-                    AppendLog($"自动切换到可用端口: {_port}");
+                    port = newPort;
+                    portField?.SetValueWithoutNotify(port);
+                    AppendLog($"端口被占用，已自动切换到：{port}");
                 }
 
-                _bindIPAddress = GetSelectedBindIP();
-
-                VoyageForgeFileServerSingleton.StartServer(_rootDirectory, _port, _bindIPAddress);
+                SaveSettings();
+                VoyageForgeFileServerSingleton.StartServer(rootDirectory, port, bindIPAddress);
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                Debug.LogException(e);
-                EditorUtility.DisplayDialog("启动失败", e.Message, "确定");
-                AppendLog($"启动失败: {e.Message}");
+                Debug.LogException(exception);
+                AppendLog($"启动失败：{exception.Message}");
+            }
+            finally
+            {
+                RefreshStatus();
             }
         }
 
+        /// <summary>
+        /// 停止局域网文件服务器。
+        /// </summary>
         private void StopServer()
         {
             try
             {
                 VoyageForgeFileServerSingleton.StopServer(permanent: true);
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                Debug.LogException(e);
-                AppendLog($"停止失败: {e.Message}");
+                Debug.LogException(exception);
+                AppendLog($"停止失败：{exception.Message}");
+            }
+            finally
+            {
+                RefreshStatus();
             }
         }
 
-        private void CheckPort()
+        /// <summary>
+        /// 复制当前访问地址到系统剪贴板。
+        /// </summary>
+        private void CopyServerUrl()
         {
-            if (_port <= 0 || _port > 65535)
+            var url = ResolveDisplayUrl();
+            EditorGUIUtility.systemCopyBuffer = url;
+            AppendLog($"已复制访问地址：{url}");
+        }
+
+        /// <summary>
+        /// 在默认浏览器中打开当前访问地址。
+        /// </summary>
+        private void OpenServerUrl()
+        {
+            Application.OpenURL(ResolveDisplayUrl());
+        }
+
+        /// <summary>
+        /// 清空窗口日志。
+        /// </summary>
+        private void ClearLog()
+        {
+            logBuilder.Clear();
+            if (logField != null)
             {
-                AppendLog($"端口无效: {_port}");
-                EditorUtility.DisplayDialog("端口检测", "端口号必须在 1 - 65535 之间。", "确定");
+                logField.value = string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 刷新状态卡片、按钮可用性和提示文本。
+        /// </summary>
+        private void RefreshStatus()
+        {
+            var running = Server != null && Server.IsRunning;
+            RefreshStatusBadge(running);
+
+            if (serverUrlLabel != null)
+            {
+                serverUrlLabel.text = running ? Server.ServerUrl : ResolveDisplayUrl();
+            }
+
+            if (rootStatusLabel != null)
+            {
+                rootStatusLabel.text = Directory.Exists(rootDirectory)
+                    ? $"根目录：{rootDirectory}"
+                    : $"根目录不存在：{rootDirectory}";
+            }
+
+            if (bindAddressLabel != null)
+            {
+                bindAddressLabel.text = string.IsNullOrWhiteSpace(bindIPAddress)
+                    ? "绑定：0.0.0.0，监听所有网卡"
+                    : $"绑定：{bindIPAddress}";
+            }
+
+            RefreshIpHelp();
+            RefreshHealth();
+            RefreshButtons(running);
+        }
+
+        /// <summary>
+        /// 刷新运行状态徽标。
+        /// </summary>
+        /// <param name="running">服务器是否运行中。</param>
+        private void RefreshStatusBadge(bool running)
+        {
+            if (statusBadge == null)
+            {
                 return;
             }
 
-            bool available = VoyageForgeFileServer.IsPortAvailable(_port);
+            statusBadge.text = running ? "运行中" : "未启动";
+            statusBadge.RemoveFromClassList("vffs-status-running");
+            statusBadge.RemoveFromClassList("vffs-status-stopped");
+            statusBadge.AddToClassList(running ? "vffs-status-running" : "vffs-status-stopped");
+        }
 
-            if (available)
+        /// <summary>
+        /// 刷新绑定 IP 的辅助提示。
+        /// </summary>
+        private void RefreshIpHelp()
+        {
+            if (ipHelpLabel == null)
             {
-                AppendLog($"端口 {_port} 可用。");
-                EditorUtility.DisplayDialog("端口检测", $"端口 {_port} 可用。", "确定");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(bindIPAddress))
+            {
+                ipHelpLabel.text = $"当前监听所有网卡。局域网设备访问时请使用：{ResolveDisplayUrl()}";
+                ipHelpLabel.RemoveFromClassList("vffs-help-warning");
+                return;
+            }
+
+            var info = ipList.FirstOrDefault(candidate => candidate.Address == bindIPAddress);
+            if (info != null && info.IsVirtualLike)
+            {
+                ipHelpLabel.text = $"当前 IP 疑似虚拟网卡：{bindIPAddress}。真机访问建议选择 Wi-Fi / Ethernet，或使用 0.0.0.0。";
+                ipHelpLabel.AddToClassList("vffs-help-warning");
+                return;
+            }
+
+            ipHelpLabel.text = $"当前访问地址：{ResolveDisplayUrl()}";
+            ipHelpLabel.RemoveFromClassList("vffs-help-warning");
+        }
+
+        /// <summary>
+        /// 刷新配置自检卡片。
+        /// </summary>
+        private void RefreshHealth()
+        {
+            if (healthBadge == null || healthMessageLabel == null)
+            {
+                return;
+            }
+
+            var messages = new List<string>();
+            var failed = false;
+            var warning = false;
+
+            if (Directory.Exists(rootDirectory))
+            {
+                messages.Add("根目录可访问");
             }
             else
             {
-                AppendLog($"端口 {_port} 已被占用。");
-                EditorUtility.DisplayDialog("端口检测", $"端口 {_port} 已被占用。", "确定");
+                failed = true;
+                messages.Add("根目录不存在");
             }
-        }
 
-        private void AutoFindPort()
-        {
-            int newPort = VoyageForgeFileServer.FindAvailablePort(_port);
-
-            if (newPort > 0)
+            if (port <= 0 || port > 65535)
             {
-                _port = newPort;
-                EditorPrefs.SetInt(PrefPort, _port);
-                AppendLog($"找到可用端口: {_port}");
+                failed = true;
+                messages.Add("端口超出 1 - 65535 范围");
+            }
+            else if (IsCurrentPortAvailable())
+            {
+                messages.Add($"端口 {port} 可用");
             }
             else
             {
-                AppendLog("没有找到可用端口。");
+                warning = true;
+                messages.Add($"端口 {port} 已被占用");
             }
-        }
 
-        private void RefreshIPList()
-        {
-            _ipList = VoyageForgeFileServer.GetAllLocalIPv4();
-
-            List<string> displayNames = new List<string>();
-
-            displayNames.Add("0.0.0.0 - 监听所有网卡，推荐");
-
-            foreach (VoyageForgeIPAddressInfo info in _ipList)
+            var selectedIp = ipList.FirstOrDefault(candidate => candidate.Address == bindIPAddress);
+            if (selectedIp != null && selectedIp.IsVirtualLike)
             {
-                string tag = info.IsVirtualLike ? "疑似虚拟网卡" : "推荐";
-                displayNames.Add($"{info.Address} - {info.Name} - {info.NetworkType} - {tag}");
+                warning = true;
+                messages.Add("绑定 IP 疑似虚拟网卡");
             }
-
-            _ipDisplayNames = displayNames.ToArray();
-
-            _selectedIPIndex = 0;
-
-            if (!string.IsNullOrWhiteSpace(_bindIPAddress))
+            else if (string.IsNullOrWhiteSpace(bindIPAddress))
             {
-                for (int i = 0; i < _ipList.Count; i++)
-                {
-                    if (_ipList[i].Address == _bindIPAddress)
-                    {
-                        _selectedIPIndex = i + 1;
-                        return;
-                    }
-                }
+                messages.Add("监听所有网卡");
+            }
+            else
+            {
+                messages.Add("绑定 IP 可用");
             }
 
-            _bindIPAddress = string.Empty;
+            var healthClass = failed ? "vffs-health-failed" : warning ? "vffs-health-warning" : "vffs-health-passed";
+            healthBadge.text = failed ? "需修复" : warning ? "有提醒" : "通过";
+            healthBadge.RemoveFromClassList("vffs-health-passed");
+            healthBadge.RemoveFromClassList("vffs-health-warning");
+            healthBadge.RemoveFromClassList("vffs-health-failed");
+            healthBadge.AddToClassList(healthClass);
+            healthMessageLabel.text = string.Join("；", messages);
         }
 
-        private string GetSelectedBindIP()
+        /// <summary>
+        /// 刷新按钮可用性。
+        /// </summary>
+        /// <param name="running">服务器是否运行中。</param>
+        private void RefreshButtons(bool running)
         {
-            if (_selectedIPIndex <= 0)
-                return string.Empty;
-
-            int listIndex = _selectedIPIndex - 1;
-
-            if (listIndex < 0 || listIndex >= _ipList.Count)
-                return string.Empty;
-
-            return _ipList[listIndex].Address;
+            startButton?.SetEnabled(!running);
+            stopButton?.SetEnabled(running);
+            copyUrlButton?.SetEnabled(true);
+            openUrlButton?.SetEnabled(true);
         }
 
-        private VoyageForgeIPAddressInfo GetSelectedIPInfo()
+        /// <summary>
+        /// 获取当前应展示或访问的 URL。
+        /// </summary>
+        /// <returns>当前访问地址。</returns>
+        private string ResolveDisplayUrl()
         {
-            if (_selectedIPIndex <= 0)
-                return null;
+            if (Server != null && Server.IsRunning)
+            {
+                return Server.ServerUrl;
+            }
 
-            int listIndex = _selectedIPIndex - 1;
-
-            if (listIndex < 0 || listIndex >= _ipList.Count)
-                return null;
-
-            return _ipList[listIndex];
+            var ip = string.IsNullOrWhiteSpace(bindIPAddress)
+                ? VoyageForgeFileServer.GetRecommendedLocalIPv4()
+                : bindIPAddress;
+            return $"http://{ip}:{port}/";
         }
 
-        private void AppendLog(string log)
+        /// <summary>
+        /// 判断当前端口是否可用。
+        /// </summary>
+        /// <returns>端口可用或当前服务器正在使用该端口时返回 true。</returns>
+        private bool IsCurrentPortAvailable()
         {
-            string time = DateTime.Now.ToString("HH:mm:ss");
-            _logBuilder.AppendLine($"[{time}] {log}");
+            return Server != null && Server.IsRunning && Server.Port == port ||
+                VoyageForgeFileServer.IsPortAvailable(port);
+        }
+
+        /// <summary>
+        /// 追加窗口日志。
+        /// </summary>
+        /// <param name="message">日志内容。</param>
+        private void AppendLog(string message)
+        {
+            var time = DateTime.Now.ToString("HH:mm:ss");
+            logBuilder.AppendLine($"[{time}] {message}");
+
+            if (logField != null)
+            {
+                logField.value = logBuilder.ToString();
+            }
+
             Repaint();
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using HybridCLR.Editor.Commands;
 using HybridCLR.Editor.Installer;
 using UnityEditor;
@@ -27,7 +28,12 @@ namespace VoyageForge.ForgeCLR.Editor
         private const string OpenBuildPanelMenuPath = "VoyageForge/ForgeCLR/打开 Unity Build 面板";
 
         /// <summary>
-        /// 构建资源包：调用 HybridCLR 生成工具、编译热更 DLL、拷贝 DLL，再调用 YooAssets 打 AB。
+        /// 构建软件包菜单路径。
+        /// </summary>
+        private const string BuildPlayerMenuPath = "VoyageForge/ForgeCLR/构建软件包";
+
+        /// <summary>
+        /// 构建资源包：编译热更 DLL、拷贝 DLL，再调用 YooAssets 打 AB。
         /// </summary>
         [MenuItem(BuildResourceMenuPath)]
         public static void BuildResourcePackage()
@@ -35,10 +41,6 @@ namespace VoyageForge.ForgeCLR.Editor
             var target = EditorUserBuildSettings.activeBuildTarget;
 
             ValidateEnvironment(true);
-          //  Debug.Log("[ForgeCLR] 开始 HybridCLR Generate/All。");
-          //  PrebuildCommand.GenerateAll();
-           
-          //构建资源包 不应该调用 PrebuildCommand.GenerateAll()，这回导致空包内程序集数据和现有数据不一致
 
             Debug.Log("<color=red>[ForgeCLR] 编译 HybridCLR 热更新 DLL。</color>");
             CompileDllCommand.CompileDll(target, EditorUserBuildSettings.development);
@@ -52,7 +54,7 @@ namespace VoyageForge.ForgeCLR.Editor
             Debug.Log("[ForgeCLR] 检查 YooAssets 收集配置。");
             ForgeCLRQuickSetup.EnsureYooAssetCollectorConfiguration();
 
-           // AssetDatabase.Refresh();
+            ForgeCLRValidationUtility.ValidateForBuild("资源包构建");
 
             Debug.Log("[ForgeCLR] 开始 YooAssets 资源构建。");
             var results = BuildYooAssetPackages(target);
@@ -63,6 +65,44 @@ namespace VoyageForge.ForgeCLR.Editor
             var outputDirectories = string.Join("\n", results.Select(result => result.OutputPackageDirectory));
             EditorUtility.DisplayDialog("ForgeCLR 构建资源包", $"资源包构建完成：\n{outputDirectories}", "确定");
             Debug.Log($"[ForgeCLR] 资源包构建完成：\n{outputDirectories}");
+        }
+
+        /// <summary>
+        /// 构建软件包：执行 HybridCLR 打包前生成、校正 Launcher 场景，然后调用 Unity 默认 Build 面板流程。
+        /// </summary>
+        [MenuItem(BuildPlayerMenuPath)]
+        public static void BuildPlayerPackage()
+        {
+            var target = EditorUserBuildSettings.activeBuildTarget;
+            ValidateEnvironment(true);
+
+            Debug.Log("[ForgeCLR] 检查 Launcher 场景和 Build Settings。");
+            ForgeCLRValidationUtility.EnsureLauncherSceneInBuildSettings();
+            ForgeCLRValidationUtility.ValidateForBuild("软件包构建");
+
+            var options = BuildPlayerWindow.DefaultBuildMethods.GetBuildPlayerOptions(new BuildPlayerOptions
+            {
+                target = target,
+                targetGroup = BuildPipeline.GetBuildTargetGroup(target)
+            });
+
+            ForgeCLRValidationUtility.EnsureLauncherSceneInBuildSettings();
+            options.scenes = EditorBuildSettings.scenes
+                .Where(scene => scene.enabled)
+                .Select(scene => scene.path)
+                .ToArray();
+
+            if (ConfirmBuildPlayer(options) == false)
+            {
+                Debug.Log("[ForgeCLR] 已取消构建软件包。");
+                return;
+            }
+
+            Debug.Log("[ForgeCLR] 开始 HybridCLR Generate/All。");
+            PrebuildCommand.GenerateAll();
+
+            Debug.Log("[ForgeCLR] 使用 Unity Build Settings 当前配置构建软件包。");
+            BuildPlayerWindow.DefaultBuildMethods.BuildPlayer(options);
         }
 
         /// <summary>
@@ -102,6 +142,32 @@ namespace VoyageForge.ForgeCLR.Editor
 
             if (ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetCollectorSetting(out _) == false)
                 throw new BuildFailedException("未找到 YooAssets Collector 设置，请先执行 ForgeCLR 快速设置或在 YooAssets 中创建配置。");
+        }
+
+        /// <summary>
+        /// 构建软件包前显示关键配置摘要，避免误点后直接触发长时间构建。
+        /// </summary>
+        /// <param name="options">Unity Build Settings 解析出的构建参数。</param>
+        /// <returns>用户确认继续时返回 true。</returns>
+        private static bool ConfirmBuildPlayer(BuildPlayerOptions options)
+        {
+            var scenes = options.scenes == null || options.scenes.Length == 0
+                ? "无启用场景"
+                : string.Join("\n", options.scenes.Select(scene => $"  - {scene}"));
+            var message = new StringBuilder();
+            message.AppendLine("即将执行 ForgeCLR 软件包构建：");
+            message.AppendLine();
+            message.AppendLine($"平台：{options.target}");
+            message.AppendLine($"输出：{options.locationPathName}");
+            message.AppendLine($"Development Build：{(options.options & BuildOptions.Development) != 0}");
+            message.AppendLine($"Build Options：{options.options}");
+            message.AppendLine();
+            message.AppendLine("场景：");
+            message.AppendLine(scenes);
+            message.AppendLine();
+            message.AppendLine("继续后会先执行 HybridCLR/Generate/All，然后调用 Unity 默认构建流程。");
+
+            return EditorUtility.DisplayDialog("ForgeCLR 构建软件包", message.ToString(), "开始构建", "取消");
         }
 
         /// <summary>

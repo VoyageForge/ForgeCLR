@@ -138,6 +138,7 @@ namespace VoyageForge.ForgeCLR.Editor
             var settings = ForgeCLRSettings.instance;
             CreateDirectory(settings.HotUpdateDllCopyDirectory);
             CreateDirectory(settings.MetadataDllCopyDirectory);
+            CreateDirectory(settings.FileServerRootDirectory);
 
             CheckHotUpdateAssembly();
             CheckHCLRSetting();
@@ -147,6 +148,7 @@ namespace VoyageForge.ForgeCLR.Editor
             EnsureYooAssetCollectorConfiguration();
             ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
             ForgeCLRRuntimeSettingsEditorUtility.AutoFillRuntimeSettings(null, startupScenePath);
+            ForgeCLRValidationUtility.EnsureLauncherSceneInBuildSettings();
             settings.SaveSettings();
             AssetDatabase.Refresh();
 
@@ -383,39 +385,7 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <returns>环境检测报告。</returns>
         public static ForgeCLRValidationReport CreateValidationReport()
         {
-            var report = new StringBuilder();
-            var items = new List<ForgeCLRValidationItem>();
-
-            AppendCheck(items, File.Exists("Packages/manifest.json"), "Packages Manifest", "Packages/manifest.json 已找到", "未找到 Packages/manifest.json");
-            AppendCheck(items, File.Exists("ProjectSettings/HybridCLRSettings.asset"), "HybridCLR Settings", "HybridCLRSettings.asset 已找到", "未找到 HybridCLRSettings.asset");
-            AppendCheck(items, ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetSettings(out _), "YooAsset Settings", "YooAssetSettings.asset 已在 Resources 下找到", "未找到 Resources/YooAssetSettings.asset，可执行快速设置创建");
-            AppendCheck(items, ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetCollectorSetting(out var collectorSetting), "YooAssets Collector", "YooAssets Collector 设置已找到", "未找到 YooAssets Collector 设置，可执行快速设置创建");
-            AppendCheck(items, Type.GetType("YooAsset.YooAssets, YooAsset") != null, "YooAssets Runtime", "YooAssets Runtime 已安装", "未检测到 YooAssets Runtime");
-            AppendCheck(items, Type.GetType("Cysharp.Threading.Tasks.UniTask, UniTask") != null, "UniTask Runtime", "UniTask Runtime 已安装", "未检测到 UniTask Runtime");
-
-            try
-            {
-                var installer = new InstallerController();
-                AppendCheck(items, installer.HasInstalledHybridCLR(), "HybridCLR Installer", "HybridCLR Installer 已完成", "HybridCLR Installer 尚未完成");
-            }
-            catch (System.Exception e)
-            {
-                items.Add(new ForgeCLRValidationItem("HybridCLR Installer", $"HybridCLR Installer 检测失败：{e.Message}", ForgeCLRValidationStatus.Failed));
-            }
-
-            var settings = ForgeCLRSettings.instance;
-            AppendCheck(items, settings.RuntimeSettings != null, "运行时配置 SO", "ForgeCLR Project Settings 已引用运行时 SO", "ForgeCLR Project Settings 未引用运行时 SO，可执行快速设置创建");
-            AppendCheck(items, HasRuntimePackageInCollector(settings.RuntimeSettings, collectorSetting), "YooAssets Package", "运行时资源包名称存在于 YooAssets Collector 配置中", "运行时资源包名称未在 YooAssets Collector 配置中找到");
-            AppendCheck(items, IsValidFolderName(settings.DllCopyDirectoryName), "DLL 拷贝根目录名", $"DLL 拷贝根目录名有效：{settings.DllCopyDirectoryName}", "DLL 拷贝根目录名不能为空，也不能包含路径分隔符");
-            AppendCheck(items, IsAssetPath(settings.HotUpdateDllCopyDirectory), "热更新 DLL 拷贝目录", "热更新 DLL 拷贝目录位于 Assets 下", "热更新 DLL 拷贝目录必须位于 Assets 下");
-            AppendCheck(items, IsAssetPath(settings.MetadataDllCopyDirectory), "AOT 元数据 DLL 拷贝目录", "AOT 元数据 DLL 拷贝目录位于 Assets 下", "AOT 元数据 DLL 拷贝目录必须位于 Assets 下");
-            AppendCheck(items, HasCollectorForPath(settings.RuntimeSettings, collectorSetting, settings.HotUpdateDllCopyDirectory), "热更新 DLL AB 收集", "热更新 DLL 目录已加入当前 YooAssets 包", "热更新 DLL 目录尚未加入当前 YooAssets 包，可点击修复补齐");
-            AppendCheck(items, HasCollectorForPath(settings.RuntimeSettings, collectorSetting, settings.MetadataDllCopyDirectory), "AOT 元数据 DLL AB 收集", "AOT 元数据 DLL 目录已加入当前 YooAssets 包", "AOT 元数据 DLL 目录尚未加入当前 YooAssets 包，可点击修复补齐");
-
-            AppendDirectoryWarning(items, settings.HotUpdateDllCopyDirectory, "热更新 DLL 拷贝目录状态");
-            AppendDirectoryWarning(items, settings.MetadataDllCopyDirectory, "AOT 元数据 DLL 拷贝目录状态");
-
-            return new ForgeCLRValidationReport(items);
+            return ForgeCLRValidationUtility.CreateReport();
         }
 
         /// <summary>
@@ -471,21 +441,7 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <returns>支持自动修复时返回 true。</returns>
         public static bool CanRepairValidationItem(string title)
         {
-            return title switch
-            {
-                "YooAsset Settings" => true,
-                "YooAssets Collector" => true,
-                "运行时配置 SO" => true,
-                "YooAssets Package" => true,
-                "DLL 拷贝根目录名" => true,
-                "热更新 DLL 拷贝目录" => true,
-                "AOT 元数据 DLL 拷贝目录" => true,
-                "热更新 DLL AB 收集" => true,
-                "AOT 元数据 DLL AB 收集" => true,
-                "热更新 DLL 拷贝目录状态" => true,
-                "AOT 元数据 DLL 拷贝目录状态" => true,
-                _ => false
-            };
+            return ForgeCLRValidationUtility.CanRepair(title);
         }
 
         /// <summary>
@@ -495,49 +451,7 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <returns>修复成功时返回 true；不支持该项时返回 false。</returns>
         public static bool TryRepairValidationItem(string title)
         {
-            if (CanRepairValidationItem(title) == false)
-            {
-                return false;
-            }
-
-            var settings = ForgeCLRSettings.instance;
-            switch (title)
-            {
-                case "YooAsset Settings":
-                    ForgeCLRRuntimeSettingsEditorUtility.EnsureYooAssetSettings();
-                    break;
-                case "YooAssets Collector":
-                    ForgeCLRRuntimeSettingsEditorUtility.EnsureYooAssetCollectorSetting();
-                    break;
-                case "运行时配置 SO":
-                    ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
-                    break;
-                case "YooAssets Package":
-                    EnsureYooAssetCollectorConfiguration();
-                    ForgeCLRRuntimeSettingsEditorUtility.AutoFillRuntimeSettings();
-                    break;
-                case "DLL 拷贝根目录名":
-                    settings.SaveSettings();
-                    break;
-                case "热更新 DLL 拷贝目录":
-                case "热更新 DLL 拷贝目录状态":
-                    CreateDirectory(settings.HotUpdateDllCopyDirectory);
-                    break;
-                case "AOT 元数据 DLL 拷贝目录":
-                case "AOT 元数据 DLL 拷贝目录状态":
-                    CreateDirectory(settings.MetadataDllCopyDirectory);
-                    break;
-                case "热更新 DLL AB 收集":
-                case "AOT 元数据 DLL AB 收集":
-                    EnsureYooAssetCollectorConfiguration();
-                    break;
-            }
-
-            settings.SaveSettings();
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            Debug.Log($"[ForgeCLR] 已尝试修复环境检测项：{title}");
-            return true;
+            return ForgeCLRValidationUtility.TryRepair(title);
         }
 
         /// <summary>

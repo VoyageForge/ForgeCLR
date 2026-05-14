@@ -8,10 +8,6 @@ namespace VoyageForge.ForgeCLR.Editor
     [InitializeOnLoad]
     public static class VoyageForgeFileServerSingleton
     {
-        private const string PrefRootDirectory = "VoyageForge_ForgeCLR_FileServer_RootDirectory";
-        private const string PrefPort = "VoyageForge_ForgeCLR_FileServer_Port";
-        private const string PrefBindIPAddress = "VoyageForge_ForgeCLR_FileServer_BindIPAddress";
-        private const string PrefAutoRestart = "VoyageForge_ForgeCLR_FileServer_AutoRestart";
         private const string PrefServerShouldRun = "VoyageForge_ForgeCLR_FileServer_ShouldRun";
 
         private const double SafetyNetInterval = 3.0;
@@ -22,8 +18,8 @@ namespace VoyageForge.ForgeCLR.Editor
 
         public static bool AutoRestart
         {
-            get => EditorPrefs.GetBool(PrefAutoRestart, false);
-            set => EditorPrefs.SetBool(PrefAutoRestart, value);
+            get => ForgeCLRSettings.instance.FileServerAutoRestart;
+            set => ForgeCLRSettings.instance.SetFileServerAutoRestart(value);
         }
 
         public static bool ServerShouldRun
@@ -69,9 +65,7 @@ namespace VoyageForge.ForgeCLR.Editor
 
         public static void SaveConfig(string rootDirectory, int port, string bindIPAddress)
         {
-            EditorPrefs.SetString(PrefRootDirectory, rootDirectory);
-            EditorPrefs.SetInt(PrefPort, port);
-            EditorPrefs.SetString(PrefBindIPAddress, bindIPAddress ?? string.Empty);
+            ForgeCLRSettings.instance.SetFileServerConfig(rootDirectory, port, bindIPAddress);
         }
 
         private static void OnCompilationStarted(object obj)
@@ -143,9 +137,10 @@ namespace VoyageForge.ForgeCLR.Editor
             if (Server.IsRunning)
                 return;
 
-            string root = EditorPrefs.GetString(PrefRootDirectory, Application.dataPath);
-            int port = EditorPrefs.GetInt(PrefPort, 8899);
-            string ip = EditorPrefs.GetString(PrefBindIPAddress, string.Empty);
+            var settings = ForgeCLRSettings.instance;
+            string root = settings.FileServerRootDirectory;
+            int port = settings.FileServerPort;
+            string ip = settings.FileServerBindIPAddress;
 
             if (string.IsNullOrWhiteSpace(root) || !System.IO.Directory.Exists(root))
                 return;

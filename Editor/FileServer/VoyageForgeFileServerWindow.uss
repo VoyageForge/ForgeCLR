@@ -1,0 +1,233 @@
+.vffs-scroll {
+    flex-grow: 1;
+    background-color: rgb(32, 35, 39);
+}
+
+.vffs-root {
+    padding: 16px;
+    flex-grow: 1;
+}
+
+.vffs-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.vffs-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(241, 243, 244);
+    margin-bottom: 4px;
+}
+
+.vffs-summary {
+    color: rgb(201, 209, 217);
+    white-space: normal;
+}
+
+.vffs-card {
+    background-color: rgb(43, 47, 51);
+    border-color: rgb(63, 70, 77);
+    border-width: 1px;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.vffs-section-title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: rgb(241, 243, 244);
+    margin-bottom: 8px;
+}
+
+.vffs-card-title-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.vffs-status-badge {
+    min-width: 72px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border-width: 1px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.vffs-status-running {
+    color: rgb(220, 255, 232);
+    background-color: rgb(31, 57, 43);
+    border-color: rgb(64, 145, 108);
+}
+
+.vffs-status-stopped {
+    color: rgb(241, 243, 244);
+    background-color: rgb(58, 63, 68);
+    border-color: rgb(83, 92, 100);
+}
+
+.vffs-health-badge {
+    min-width: 72px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border-width: 1px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.vffs-health-passed {
+    color: rgb(220, 255, 232);
+    background-color: rgb(31, 57, 43);
+    border-color: rgb(64, 145, 108);
+}
+
+.vffs-health-warning {
+    color: rgb(255, 224, 178);
+    background-color: rgb(64, 51, 29);
+    border-color: rgb(184, 128, 43);
+}
+
+.vffs-health-failed {
+    color: rgb(255, 222, 222);
+    background-color: rgb(70, 36, 38);
+    border-color: rgb(189, 82, 82);
+}
+
+.vffs-health-message {
+    color: rgb(201, 209, 217);
+    white-space: normal;
+    margin-top: 2px;
+}
+
+.vffs-status-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.vffs-status-item {
+    width: 48%;
+    min-height: 56px;
+    padding: 9px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: rgb(63, 70, 77);
+    background-color: rgb(37, 41, 45);
+}
+
+.vffs-status-item-wide {
+    width: 98%;
+}
+
+.vffs-kicker {
+    color: rgb(170, 179, 186);
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.vffs-value {
+    color: rgb(241, 243, 244);
+    white-space: normal;
+}
+
+.vffs-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.vffs-grow {
+    flex-grow: 1;
+}
+
+.vffs-field {
+    margin-bottom: 0;
+}
+
+.vffs-toggle {
+    color: rgb(201, 209, 217);
+    margin-top: 4px;
+}
+
+.vffs-help {
+    padding: 8px;
+    margin-top: 2px;
+    margin-bottom: 8px;
+    color: rgb(201, 209, 217);
+    background-color: rgb(37, 41, 45);
+    border-color: rgb(63, 70, 77);
+    border-width: 1px;
+    border-radius: 5px;
+    white-space: normal;
+}
+
+.vffs-help-warning {
+    color: rgb(255, 224, 178);
+    background-color: rgb(64, 51, 29);
+    border-color: rgb(184, 128, 43);
+}
+
+.vffs-button-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.vffs-button {
+    min-width: 120px;
+    height: 28px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    -unity-font-style: bold;
+}
+
+.vffs-small-button {
+    min-width: 82px;
+    height: 24px;
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+.vffs-button-primary {
+    background-color: rgb(45, 106, 79);
+    border-color: rgb(64, 145, 108);
+    color: rgb(255, 255, 255);
+}
+
+.vffs-button-primary:hover {
+    background-color: rgb(52, 126, 91);
+}
+
+.vffs-button-secondary {
+    background-color: rgb(58, 63, 68);
+    border-color: rgb(83, 92, 100);
+    color: rgb(241, 243, 244);
+}
+
+.vffs-button-secondary:hover {
+    background-color: rgb(67, 74, 80);
+}
+
+.vffs-log-card {
+    flex-grow: 1;
+}
+
+.vffs-log-field {
+    min-height: 180px;
+    flex-grow: 1;
+    color: rgb(201, 209, 217);
+}
+
+.vffs-log-field TextInput {
+    background-color: rgb(31, 34, 38);
+    color: rgb(201, 209, 217);
+    border-color: rgb(63, 70, 77);
+    border-width: 1px;
+    border-radius: 4px;
+    white-space: normal;
+}

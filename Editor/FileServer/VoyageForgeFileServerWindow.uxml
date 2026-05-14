@@ -1,0 +1,77 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:ScrollView name="RootScrollView" class="vffs-scroll">
+        <ui:VisualElement name="Root" class="vffs-root">
+            <ui:VisualElement class="vffs-header">
+                <ui:VisualElement>
+                    <ui:Label text="VoyageForge 局域网文件服务器" class="vffs-title" />
+                    <ui:Label text="为真机和局域网设备提供资源包下载入口，配置会保存到 ForgeCLR Project Settings。" class="vffs-summary" />
+                </ui:VisualElement>
+                <ui:Label name="StatusBadge" text="未启动" class="vffs-status-badge vffs-status-stopped" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="vffs-card">
+                <ui:Label text="运行状态" class="vffs-section-title" />
+                <ui:VisualElement class="vffs-status-grid">
+                    <ui:VisualElement class="vffs-status-item">
+                        <ui:Label text="访问地址" class="vffs-kicker" />
+                        <ui:Label name="ServerUrlLabel" text="-" class="vffs-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="vffs-status-item">
+                        <ui:Label text="绑定地址" class="vffs-kicker" />
+                        <ui:Label name="BindAddressLabel" text="-" class="vffs-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="vffs-status-item vffs-status-item-wide">
+                        <ui:Label text="根目录" class="vffs-kicker" />
+                        <ui:Label name="RootStatusLabel" text="-" class="vffs-value" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="vffs-card">
+                <ui:VisualElement class="vffs-card-title-row">
+                    <ui:Label text="配置自检" class="vffs-section-title" />
+                    <ui:Label name="HealthBadge" text="等待检测" class="vffs-health-badge vffs-health-warning" />
+                </ui:VisualElement>
+                <ui:Label name="HealthMessageLabel" text="检测根目录、端口和绑定 IP。" class="vffs-health-message" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="vffs-card">
+                <ui:Label text="服务器配置" class="vffs-section-title" />
+                <ui:VisualElement class="vffs-row">
+                    <ui:TextField name="RootDirectoryField" label="根目录" class="vffs-field vffs-grow" />
+                    <ui:Button name="ChooseRootButton" text="选择" class="vffs-button vffs-button-secondary vffs-small-button" />
+                    <ui:Button name="OpenRootButton" text="打开" class="vffs-button vffs-button-secondary vffs-small-button" />
+                </ui:VisualElement>
+                <ui:VisualElement class="vffs-row">
+                    <ui:IntegerField name="PortField" label="端口" class="vffs-field vffs-grow" />
+                    <ui:Button name="CheckPortButton" text="检测端口" class="vffs-button vffs-button-secondary vffs-small-button" />
+                    <ui:Button name="AutoPortButton" text="自动端口" class="vffs-button vffs-button-secondary vffs-small-button" />
+                </ui:VisualElement>
+                <ui:VisualElement class="vffs-row">
+                    <ui:VisualElement name="BindIpFieldContainer" class="vffs-grow" />
+                    <ui:Button name="RefreshIpButton" text="刷新 IP" class="vffs-button vffs-button-secondary vffs-small-button" />
+                </ui:VisualElement>
+                <ui:Label name="IpHelpLabel" text="-" class="vffs-help" />
+                <ui:Toggle name="AutoRestartToggle" label="域重载后自动恢复服务器" class="vffs-toggle" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="vffs-card">
+                <ui:Label text="操作" class="vffs-section-title" />
+                <ui:VisualElement class="vffs-button-row">
+                    <ui:Button name="StartButton" text="启动服务器" class="vffs-button vffs-button-primary" />
+                    <ui:Button name="StopButton" text="停止服务器" class="vffs-button vffs-button-secondary" />
+                    <ui:Button name="CopyUrlButton" text="复制访问地址" class="vffs-button vffs-button-secondary" />
+                    <ui:Button name="OpenUrlButton" text="浏览器打开" class="vffs-button vffs-button-secondary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="vffs-card vffs-log-card">
+                <ui:VisualElement class="vffs-card-title-row">
+                    <ui:Label text="日志" class="vffs-section-title" />
+                    <ui:Button name="ClearLogButton" text="清空日志" class="vffs-button vffs-button-secondary vffs-small-button" />
+                </ui:VisualElement>
+                <ui:TextField name="LogField" multiline="true" class="vffs-log-field" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:ScrollView>
+</ui:UXML>
