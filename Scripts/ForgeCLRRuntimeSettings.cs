@@ -37,11 +37,7 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// </summary>
         [SerializeField] private EPlayMode playMode = EPlayMode.EditorSimulateMode;
 
-        /// <summary>
-        /// 是否在资源补丁完成后加载 HybridCLR AOT 补充元数据。
-        /// </summary>
-        [Header("HybridCLR")]
-        [SerializeField] private bool loadAotMetadata = true;
+        
 
         /// <summary>
         /// AOT 补充元数据 DLL 的 YooAssets 完整资源路径，由 ForgeCLR 构建流程自动写入。
@@ -85,10 +81,6 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// </summary>
         public EPlayMode PlayMode => playMode;
 
-        /// <summary>
-        /// 是否加载 AOT 补充元数据。
-        /// </summary>
-        public bool LoadAotMetadata => loadAotMetadata;
 
         /// <summary>
         /// AOT 补充元数据 DLL 地址集合。

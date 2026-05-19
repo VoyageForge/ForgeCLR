@@ -15,15 +15,7 @@ namespace VoyageForge.ForgeCLR.Editor
     /// </summary>
     public sealed class VoyageForgeFileServerWindow : EditorWindow
     {
-        /// <summary>
-        /// 文件服务器窗口 UXML 布局路径。
-        /// </summary>
-        private const string UxmlPath = "Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uxml";
-
-        /// <summary>
-        /// 文件服务器窗口 USS 样式路径。
-        /// </summary>
-        private const string UssPath = "Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uss";
+        [SerializeField] private VisualTreeAsset _visualTreeAsset;
 
         /// <summary>
         /// 当前共享的文件服务器实例。
@@ -117,6 +109,8 @@ namespace VoyageForge.ForgeCLR.Editor
             {
                 Server.OnLog += AppendLog;
             }
+            Server.OnRunning -= RefreshStatus;
+            Server.OnRunning += RefreshStatus;
         }
 
         /// <summary>
@@ -130,6 +124,9 @@ namespace VoyageForge.ForgeCLR.Editor
             {
                 Server.OnLog -= AppendLog;
             }
+            
+            Server.OnRunning -= RefreshStatus;
+           
         }
 
         /// <summary>
@@ -152,19 +149,13 @@ namespace VoyageForge.ForgeCLR.Editor
         /// </summary>
         private void LoadVisualTree()
         {
-            var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
-            if (visualTree == null)
+            if (_visualTreeAsset == null)
             {
-                rootVisualElement.Add(new Label($"未找到文件服务器窗口 UXML：{UxmlPath}"));
+                rootVisualElement.Add(new Label($"未找到文件服务器窗口 UXML"));
                 return;
             }
 
-            visualTree.CloneTree(rootVisualElement);
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
-            if (styleSheet != null)
-            {
-                rootVisualElement.styleSheets.Add(styleSheet);
-            }
+            _visualTreeAsset.CloneTree(rootVisualElement);
         }
 
         /// <summary>
@@ -677,7 +668,7 @@ namespace VoyageForge.ForgeCLR.Editor
         private bool IsCurrentPortAvailable()
         {
             return Server != null && Server.IsRunning && Server.Port == port ||
-                VoyageForgeFileServer.IsPortAvailable(port);
+                   VoyageForgeFileServer.IsPortAvailable(port);
         }
 
         /// <summary>

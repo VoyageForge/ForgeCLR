@@ -124,8 +124,8 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// <returns>去除末尾斜杠后的资源服务器地址。</returns>
         private static string GetHostServerURL()
         {
-            BridgeClient.UseDefaultConfigProviderIfMissing<ResourcesBridgeConfigProvider>();
-            string hostServerUrl = BridgeClient.Config.GetBaseUrl(ResourceEndpointKey);
+            
+            string hostServerUrl = BridgeClient.Instance.GetBaseUrl(ResourceEndpointKey);
             return hostServerUrl.TrimEnd('/');
         }
         

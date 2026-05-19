@@ -1,7 +1,7 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Assets/ForgeCLR/Editor/FileServer/VoyageForgeFileServerWindow.uss?fileID=7433441132597879392&amp;guid=ebcc83d177e68834a945ec76be3e5a42&amp;type=3#VoyageForgeFileServerWindow" />
     <ui:ScrollView name="RootScrollView" class="vffs-scroll">
         <ui:VisualElement name="Root" class="vffs-root">
-            <!-- 顶部标题和运行状态徽标。状态徽标由 C# 根据服务器运行状态切换样式。 -->
             <ui:VisualElement class="vffs-header">
                 <ui:VisualElement>
                     <ui:Label text="VoyageForge 局域网文件服务器" class="vffs-title" />
@@ -9,8 +9,6 @@
                 </ui:VisualElement>
                 <ui:Label name="StatusBadge" text="未启动" class="vffs-status-badge vffs-status-stopped" />
             </ui:VisualElement>
-
-            <!-- 运行状态卡：展示访问地址、绑定地址和当前根目录。 -->
             <ui:VisualElement class="vffs-card">
                 <ui:Label text="运行状态" class="vffs-section-title" />
                 <ui:VisualElement class="vffs-status-grid">
@@ -28,8 +26,6 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
-
-            <!-- 配置自检卡：根目录、端口和绑定 IP 的结果由 C# 汇总。 -->
             <ui:VisualElement class="vffs-card">
                 <ui:VisualElement class="vffs-card-title-row">
                     <ui:Label text="配置自检" class="vffs-section-title" />
@@ -37,17 +33,15 @@
                 </ui:VisualElement>
                 <ui:Label name="HealthMessageLabel" text="检测根目录、端口和绑定 IP。" class="vffs-health-message" />
             </ui:VisualElement>
-
-            <!-- 服务器配置卡：所有字段写回 ForgeCLR Project Settings。 -->
             <ui:VisualElement class="vffs-card">
                 <ui:Label text="服务器配置" class="vffs-section-title" />
-                <ui:VisualElement class="vffs-row">
-                    <ui:TextField name="RootDirectoryField" label="根目录" class="vffs-field vffs-grow" />
+                <ui:VisualElement class="vffs-row" style="flex-wrap: nowrap; overflow: visible;">
+                    <ui:TextField name="RootDirectoryField" label="根目录" class="vffs-field vffs-grow" style="flex-grow: 1; flex-basis: 0; width: auto; justify-content: flex-start; align-items: stretch; overflow: hidden;" />
                     <ui:Button name="ChooseRootButton" text="选择" class="vffs-button vffs-button-secondary vffs-small-button" />
                     <ui:Button name="OpenRootButton" text="打开" class="vffs-button vffs-button-secondary vffs-small-button" />
                 </ui:VisualElement>
-                <ui:VisualElement class="vffs-row">
-                    <ui:IntegerField name="PortField" label="端口" class="vffs-field vffs-grow" />
+                <ui:VisualElement class="vffs-row" style="flex-wrap: wrap;">
+                    <ui:IntegerField name="PortField" label="端口" class="vffs-field vffs-grow" style="flex-basis: 0;" />
                     <ui:Button name="CheckPortButton" text="检测端口" class="vffs-button vffs-button-secondary vffs-small-button" />
                     <ui:Button name="AutoPortButton" text="自动端口" class="vffs-button vffs-button-secondary vffs-small-button" />
                 </ui:VisualElement>
@@ -58,8 +52,6 @@
                 <ui:Label name="IpHelpLabel" text="-" class="vffs-help" />
                 <ui:Toggle name="AutoRestartToggle" label="域重载后自动恢复服务器" class="vffs-toggle" />
             </ui:VisualElement>
-
-            <!-- 操作按钮卡：启动、停止、复制和打开访问地址。 -->
             <ui:VisualElement class="vffs-card">
                 <ui:Label text="操作" class="vffs-section-title" />
                 <ui:VisualElement class="vffs-button-row">
@@ -69,8 +61,6 @@
                     <ui:Button name="OpenUrlButton" text="浏览器打开" class="vffs-button vffs-button-secondary" />
                 </ui:VisualElement>
             </ui:VisualElement>
-
-            <!-- 日志卡：展示窗口操作和文件服务器回调日志。 -->
             <ui:VisualElement class="vffs-card vffs-log-card">
                 <ui:VisualElement class="vffs-card-title-row">
                     <ui:Label text="日志" class="vffs-section-title" />

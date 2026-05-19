@@ -17,7 +17,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         void IStateNode.OnEnter()
         {
-            Debug.Log("[ForgeCLR] 开始下载资源文件");
+            LauncherStatus.Instance.Log("[ForgeCLR] 开始下载资源文件");
             BeginDownload().Forget();
         }
 
@@ -40,10 +40,12 @@ namespace VoyageForge.ForgeCLR.Runtime
 
             downloader.DownloadUpdateCallback = data =>
             {
-                Debug.Log($"[ForgeCLR] Download progress: {data.CurrentDownloadCount}/{data.TotalDownloadCount}");
+                LauncherStatus.Instance.Log(
+                    $"[ForgeCLR] Download progress: {data.CurrentDownloadCount}/{data.TotalDownloadCount}");
             };
 
             downloader.BeginDownload();
+
             await downloader.ToUniTask();
 
             if (downloader.Status != EOperationStatus.Succeed)
@@ -51,6 +53,7 @@ namespace VoyageForge.ForgeCLR.Runtime
                 _owner.SetError(downloader.Error);
                 return;
             }
+
 
             _machine.ChangeState<FsmDownloadPackageOver>();
         }

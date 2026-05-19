@@ -13,7 +13,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         void IStateNode.OnEnter()
         {
-            Debug.Log("[ForgeCLR] 资源文件下载完毕");
+            LauncherStatus.Instance.Log("[ForgeCLR] 资源文件下载完毕");
             _machine.ChangeState<FsmClearCacheBundle>();
         }
 

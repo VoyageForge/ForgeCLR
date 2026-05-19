@@ -14,7 +14,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         void IStateNode.OnEnter()
         {
-            Debug.Log("[ForgeCLR] 创建资源下载器");
+            LauncherStatus.Instance.Log("[ForgeCLR] 创建资源下载器");
             CreateDownloader();
         }
 
@@ -36,12 +36,12 @@ namespace VoyageForge.ForgeCLR.Runtime
 
             if (downloader.TotalDownloadCount == 0)
             {
-                Debug.Log("[ForgeCLR] 没有需要下载的资源文件");
-                _machine.ChangeState<FsmStartGame>();
+                LauncherStatus.Instance.Log("[ForgeCLR] 没有需要下载的资源文件");
+                _machine.ChangeState<FsmLoadAotMetadata>();
                 return;
             }
 
-            Debug.Log($"[ForgeCLR] Found update files {downloader.TotalDownloadCount}:{downloader.TotalDownloadBytes}");
+            LauncherStatus.Instance.Log($"[ForgeCLR] Found update files {downloader.TotalDownloadCount}:{downloader.TotalDownloadBytes}");
             _machine.ChangeState<FsmDownloadPackageFiles>();
         }
     }

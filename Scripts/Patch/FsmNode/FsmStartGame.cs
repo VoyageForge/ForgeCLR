@@ -13,7 +13,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         void IStateNode.OnEnter()
         {
-            Debug.Log("[ForgeCLR] 补丁流程完成");
+            LauncherStatus.Instance.Log("[ForgeCLR] 补丁流程完成");
             _owner.SetFinish();
         }
 

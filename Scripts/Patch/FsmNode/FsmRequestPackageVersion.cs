@@ -17,7 +17,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         void IStateNode.OnEnter()
         {
-            Debug.Log("[ForgeCLR] 请求资源版本");
+            LauncherStatus.Instance.Log("[ForgeCLR] 请求资源版本");
             UpdatePackageVersion().Forget();
         }
 

@@ -61,10 +61,19 @@ namespace VoyageForge.ForgeCLR.Runtime
             _machine.AddNode<FsmDownloadPackageFiles>();
             _machine.AddNode<FsmDownloadPackageOver>();
             _machine.AddNode<FsmClearCacheBundle>();
+            _machine.AddNode<FsmLoadAotMetadata>();
+            _machine.AddNode<FsmLoadHotUpdateAssemblies>();
+            _machine.AddNode<FsmRuntimeInitializeInvoker>();
+            
             _machine.AddNode<FsmStartGame>();
 
             _machine.SetBlackboardValue("PackageName", packageName);
             _machine.SetBlackboardValue("PlayMode", playMode);
+        }
+        
+        public void SetBlackboardValue(string key, object value)
+        {
+            _machine.SetBlackboardValue(key, value);
         }
 
         /// <summary>
@@ -103,6 +112,8 @@ namespace VoyageForge.ForgeCLR.Runtime
             _steps = ESteps.Done;
             Status = EOperationStatus.Succeed;
             Debug.Log($"Package {_packageName} patch done !");
+            
+            
         }
 
         /// <summary>

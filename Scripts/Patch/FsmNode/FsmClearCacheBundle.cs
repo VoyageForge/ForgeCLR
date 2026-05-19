@@ -14,7 +14,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         void IStateNode.OnEnter()
         {
-            Debug.Log("[ForgeCLR] 清理未使用的缓存文件");
+            LauncherStatus.Instance.Log("[ForgeCLR] 清理未使用的缓存文件");
             var packageName = (string)_machine.GetBlackboardValue("PackageName");
             var package = YooAssets.GetPackage(packageName);
             var operation = package.ClearCacheFilesAsync(EFileClearMode.ClearUnusedBundleFiles);
@@ -31,7 +31,7 @@ namespace VoyageForge.ForgeCLR.Runtime
 
         private void Operation_Completed(AsyncOperationBase obj)
         {
-            _machine.ChangeState<FsmStartGame>();
+            _machine.ChangeState<FsmLoadAotMetadata>();
         }
     }
 }

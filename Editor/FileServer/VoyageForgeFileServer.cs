@@ -31,6 +31,8 @@ namespace VoyageForge.ForgeCLR.Editor
         public string ServerUrl => $"http://{LocalIPAddress}:{Port}/";
 
         public event Action<string> OnLog;
+        
+        public event Action OnRunning;
 
         public void Start(string rootDirectory, int port, string bindIPAddress)
         {
@@ -74,8 +76,12 @@ namespace VoyageForge.ForgeCLR.Editor
             _listener.Start();
 
             IsRunning = true;
+            
+            
 
             _serverTask = Task.Run(() => AcceptLoopAsync(_cts.Token), _cts.Token);
+            
+            OnRunning?.Invoke();
 
             Log($"VoyageForge 文件服务器已启动: {ServerUrl}");
             Log($"绑定地址: {(string.IsNullOrWhiteSpace(BindIPAddress) ? "0.0.0.0" : BindIPAddress)}");
