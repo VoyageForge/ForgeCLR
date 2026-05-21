@@ -1,0 +1,16 @@
+{
+  "name": "com.voyageforge.forgeclr",
+  "version": "0.1.0",
+  "displayName": "ForgeCLR",
+  "description": "ForgeCLR integrates HybridCLR, YooAssets, and UniTask into a reusable hot-update workflow.",
+  "unity": "2022.3",
+  "dependencies": {
+    "com.voyageforge.bridge": "0.0.3",
+    "com.voyageforge.depot": "0.0.2"
+  },
+  "author": {
+    "name": "VoyageForge",
+    "url": "https://github.com/VoyageForge/ForgeCLR"
+  },
+  "license": "MIT"
+}
