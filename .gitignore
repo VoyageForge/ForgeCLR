@@ -102,3 +102,6 @@ InitTestScene*.unity*
 
 # 忽略 .idea/ 目录下的所有内容（通常包含IDE配置）
 .idea/
+
+# Claude Code 本地配置
+.claude/
