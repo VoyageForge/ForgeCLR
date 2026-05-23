@@ -34,12 +34,12 @@ namespace VoyageForge.ForgeCLR.Editor
         public const string DefaultPackageName = "DefaultPackage";
 
         /// <summary>
-        /// 默认 YooAssets Collector 配置资产路径。
+        /// YooAssets Collector 配置资产路径（仅编辑器使用，放在 Assets 下避免打包进 Resources）。
         /// </summary>
-        private const string YooAssetCollectorSettingPath = "Assets/Resources/AssetBundleCollectorSetting.asset";
+        private const string YooAssetCollectorSettingPath = "Assets/AssetBundleCollectorSetting.asset";
 
         /// <summary>
-        /// 默认 YooAssets Settings 配置资产路径。
+        /// YooAssets Settings 配置资产路径（运行时需从 Resources 加载）。
         /// </summary>
         private const string YooAssetSettingsPath = "Assets/Resources/YooAssetSettings.asset";
 
@@ -153,13 +153,29 @@ namespace VoyageForge.ForgeCLR.Editor
 
         /// <summary>
         /// 从项目中查找 YooAssets Collector 配置资产。
+        /// 优先检查默认路径，其次全局搜索类型（仅限 Assets 下，排除 Resources）。
         /// </summary>
         /// <param name="setting">找到的配置资产。</param>
         /// <returns>找到配置资产时返回 true。</returns>
         public static bool TryGetYooAssetCollectorSetting(out AssetBundleCollectorSetting setting)
         {
             setting = AssetDatabase.LoadAssetAtPath<AssetBundleCollectorSetting>(YooAssetCollectorSettingPath);
-            return setting != null;
+            if (setting != null)
+                return true;
+
+            var guids = AssetDatabase.FindAssets("t:AssetBundleCollectorSetting");
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.StartsWith("Assets/") && path.Contains("/Resources/") == false)
+                {
+                    setting = AssetDatabase.LoadAssetAtPath<AssetBundleCollectorSetting>(path);
+                    if (setting != null)
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -173,7 +189,10 @@ namespace VoyageForge.ForgeCLR.Editor
                 return setting;
             }
 
-            EnsureResourcesDirectory();
+            var directory = Path.GetDirectoryName(YooAssetCollectorSettingPath);
+            if (Directory.Exists(directory) == false)
+                Directory.CreateDirectory(directory);
+
             setting = ScriptableObject.CreateInstance<AssetBundleCollectorSetting>();
             AssetDatabase.CreateAsset(setting, YooAssetCollectorSettingPath);
             AssetDatabase.SaveAssets();
@@ -184,13 +203,32 @@ namespace VoyageForge.ForgeCLR.Editor
 
         /// <summary>
         /// 从项目中查找 YooAssetSettings 配置资产。
+        /// 优先检查默认路径，其次全局搜索类型（必须在 Resources 下，运行时从 Resources 加载）。
         /// </summary>
         /// <param name="setting">找到的配置资产。</param>
         /// <returns>找到配置资产时返回 true。</returns>
         public static bool TryGetYooAssetSettings(out ScriptableObject setting)
         {
             setting = AssetDatabase.LoadAssetAtPath<ScriptableObject>(YooAssetSettingsPath);
-            return setting != null && setting.GetType().FullName == "YooAsset.YooAssetSettings";
+            if (setting != null && setting.GetType().FullName == "YooAsset.YooAssetSettings")
+                return true;
+
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.StartsWith("Assets/Resources/"))
+                {
+                    var obj = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                    if (obj != null && obj.GetType().FullName == "YooAsset.YooAssetSettings")
+                    {
+                        setting = obj;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

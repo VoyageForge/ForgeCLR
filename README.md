@@ -85,10 +85,10 @@ Project Settings 中只允许修改中间目录名，例如默认 `HotUpdateDll`
 
 YooAssets 需要两个配置文件，ForgeCLR 会在快速设置和环境检测中检查它们：
 
-- `Assets/Resources/YooAssetSettings.asset`
-- `Assets/Resources/AssetBundleCollectorSetting.asset`
+- `Assets/Resources/YooAssetSettings.asset` — 运行时通过 Resources 加载
+- `Assets/AssetBundleCollectorSetting.asset` — 仅编辑器使用，放在 Assets 根目录避免被打包进 Resources
 
-`AssetBundleCollectorSetting` 必须放在 `Resources` 下，避免 YooAssets 编辑器和运行时加载到不同配置。YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、内置资源拷贝等配置仍然在 YooAssets 自己的窗口中维护：
+YooAssets 的 Package、Collector、Builder、压缩方式、输出根目录、内置资源拷贝等配置仍然在 YooAssets 自己的窗口中维护：
 
 - `YooAsset/AssetBundle Collector`
 - `YooAsset/AssetBundle Builder`
@@ -192,18 +192,11 @@ HybridCLR 的“程序集集合”分成两类理解：
 6. 如果要真机 HostPlayMode 测试，把 Bridge 的 `Assets` 地址指向文件服务器显示的访问地址。
 7. 运行 `VoyageForge/ForgeCLR/构建软件包`，确认弹窗里的平台、输出路径、Development Build 和场景列表后开始构建。
 
-## 检测与修复扩展
+## 环境检测
 
-环境检测统一放在 `ForgeCLRValidationUtility` 中，Project Settings、快速设置和构建前检查都复用同一份逻辑。
+环境检测系统采用面向接口设计，每个检测项独立为一个类，实现 `IForgeCLRValidationCheck` 接口。通过反射自动发现所有检测类，无需手动注册。详细架构、现有检测项列表和添加新检测的步骤见：
 
-新增检测项时建议按这个顺序处理：
-
-1. 在 `CreateReport()` 中追加检测项，明确通过、警告或失败的条件。
-2. 如果检测项可以自动修复，在 `CanRepair()` 中加入标题。
-3. 在 `TryRepair()` 中实现修复逻辑，例如创建目录、补齐 Collector、校正 Build Settings。
-4. 如果检测项会影响构建，在 `ValidateForBuild()` 的失败项中保留为 `Failed`；如果只是提醒，用 `Warning`。
-
-检测项标题同时用于 Project Settings 卡片上的“修复”按钮，所以标题需要稳定，不要随意改名。
+→ [VALIDATION.md](VALIDATION.md)
 
 ## 常见问题
 
@@ -215,18 +208,13 @@ HybridCLR 的“程序集集合”分成两类理解：
 
 Unity 会把 `.dll` 识别为托管程序集，容易被编辑器导入和编译。改成 `.dll.bytes` 后可以作为普通二进制资源交给 YooAssets 收集，运行时再读取 bytes 加载。
 
-### 为什么 AssetBundleCollectorSetting 必须在 Resources 下？
+### 为什么 AssetBundleCollectorSetting 放在 Assets 根目录？
 
-ForgeCLR 需要同时在编辑器配置、自动检测和运行时加载路径上保持一致。放在 `Assets/Resources/AssetBundleCollectorSetting.asset` 可以避免编辑器和运行时读到不同配置。
+`AssetBundleCollectorSetting` 仅供编辑器使用（YooAssets 构建管线读取），不需要在运行时通过 Resources 加载。放在 `Assets/` 根目录避免被打包进 Resources，减少不必要的包体。运行时需要的配置是 `YooAssetSettings`，它仍然放在 `Assets/Resources/` 下。
 
 ### 文件服务器启动成功但手机访问不到怎么办？
 
 先确认手机和电脑在同一个局域网，访问地址不要使用 `0.0.0.0`，要使用窗口显示的真实 IP。然后检查 Windows 防火墙，允许 Unity Editor 通过专用网络的入站 TCP 访问。VPN 或虚拟网卡较多时，优先绑定 Wi-Fi / Ethernet 的 IP。
 
 ## 待改进
-1. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。
-2. Android 真机测试仍需要结合项目实际图形 API 和启动参数确认是否使用 `-force-gles`。 通过命令行参数 去处理  C:\Users\<`UserName`>\AppData\Roaming\UnityHub\projectsInfo.json
-3. 
-4. 后续新增检测项时优先追加到 `ForgeCLRValidationUtility`，避免构建、快速设置和 Project Settings 三处逻辑分散。
-5. 检查streamingassets 中的文件 是否有中文名 特殊字符等  需改为配置项，严格模式 会报错，非严格模式 出警告
-6. 确保streamingassets 中包含 yooassets 必备的文件
+1. 优化一键配置流程，减少手动步骤。

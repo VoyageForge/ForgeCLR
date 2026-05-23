@@ -17,7 +17,7 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             var exists = ForgeCLRRuntimeSettingsEditorUtility.TryGetYooAssetCollectorSetting(out _);
             return new ForgeCLRValidationItem(Title,
-                exists ? "YooAssets Collector 设置已找到" : "未找到 YooAssets Collector 设置，可执行快速设置创建",
+                exists ? "Assets/AssetBundleCollectorSetting.asset 已找到" : "未找到 Assets/AssetBundleCollectorSetting.asset，可执行快速设置创建",
                 exists ? ForgeCLRValidationStatus.Passed : ForgeCLRValidationStatus.Failed);
         }
 

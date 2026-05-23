@@ -1,72 +1,95 @@
 using System.IO;
-using System.Linq;
+using UnityEditor;
 using UnityEngine;
+
 
 namespace VoyageForge.ForgeCLR.Editor
 {
     /// <summary>
-    /// 检测 StreamingAssets 中是否包含 YooAsset 启动的关键文件。
-    /// YooAsset 初始化流程：先读取内置 catalog（json + hash），
+    /// 检测 YooAssets 内置资源目录中是否包含启动必须的 BuildinCatalog 文件。
+    /// YooAssets 初始化顺序：先读取内置 BuildinCatalog（bytes + json），
     /// 解析后得知所有资源包清单和远程下载地址，之后按需拉取 .bundle。
-    /// 因此只检查 catalog 文件是否存在即可，不要求所有 .bundle 都在本地。
-    /// 此检查不支持自动修复，需通过 YooAsset 构建内置资源流程生成。
+    /// 内置文件路径：Assets/StreamingAssets/{YooFolderName}/{PackageName}/
+    /// 其中 YooFolderName 来自 YooAssetSettings.DefaultYooFolderName（默认 "yoo"），
+    /// PackageName 来自 ForgeCLRRuntimeSettings。
+    /// 此检查不支持自动修复，需通过 YooAsset 构建内置资源。
     /// </summary>
     public sealed class StreamingAssetsYooAssetFilesCheck : IForgeCLRValidationCheck
     {
         public string Title => "StreamingAssets YooAssets 文件";
         public bool CanRepair => false;
 
-        private const string StreamingAssetsPath = "Assets/StreamingAssets";
+        private const string YooAssetSettingsPath = "Assets/Resources/YooAssetSettings.asset";
 
         /// <summary>
-        /// 扫描 StreamingAssets 目录，检测是否包含 YooAsset catalog 启动文件。
-        /// 有 json + hash 即可通过，仅有其中之一或都没有则告警。
+        /// 从 YooAssetSettings.asset 读取 DefaultYooFolderName，默认 "yoo"。
         /// </summary>
-        public ForgeCLRValidationItem Validate(ForgeCLRValidationContext context)
+        private static string GetYooFolderName()
         {
-            if (!Directory.Exists(StreamingAssetsPath))
-            {
-                return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 目录不存在，构建内置资源后会自动生成",
-                    ForgeCLRValidationStatus.Warning);
-            }
+            var settings = AssetDatabase.LoadAssetAtPath<ScriptableObject>(YooAssetSettingsPath);
+            if (settings == null)
+                return "yoo";
 
-            var allFiles = Directory.GetFiles(StreamingAssetsPath, "*", SearchOption.TopDirectoryOnly);
-            var catalogJson = allFiles.FirstOrDefault(f => Path.GetFileName(f).StartsWith("BuildinCatalog")
-                                                          && Path.GetExtension(f).ToLowerInvariant() == ".json");
-            var catalogHash = allFiles.FirstOrDefault(f => Path.GetFileName(f).StartsWith("BuildinCatalog")
-                                                          && Path.GetExtension(f).ToLowerInvariant() == ".hash");
-
-            if (catalogJson == null && catalogHash == null)
-            {
-                return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 中未找到 BuildinCatalog.json / BuildinCatalog.hash，YooAsset 无法初始化内置资源包",
-                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
-            }
-
-            if (catalogJson == null)
-            {
-                return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 中缺少 BuildinCatalog.json，YooAsset 无法解析资源清单",
-                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
-            }
-
-            if (catalogHash == null)
-            {
-                return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 中缺少 BuildinCatalog.hash，YooAsset 无法校验资源清单完整性",
-                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
-            }
-
-            var subFiles = Directory.GetFiles(StreamingAssetsPath, "*", SearchOption.AllDirectories);
-            return new ForgeCLRValidationItem(Title,
-                $"StreamingAssets 中包含 BuildinCatalog 启动文件，共 {subFiles.Length} 个文件",
-                ForgeCLRValidationStatus.Passed);
+            var so = new SerializedObject(settings);
+            var prop = so.FindProperty("DefaultYooFolderName");
+            return string.IsNullOrWhiteSpace(prop?.stringValue) == false ? prop.stringValue : "yoo";
         }
 
         /// <summary>
-        /// 不支持自动修复。请通过 YooAsset 构建内置资源。
+        /// 拼装 YooAssets 内置资源在 StreamingAssets 下的完整路径。
         /// </summary>
+        private static string GetBuiltinPackagePath(ForgeCLRValidationContext context)
+        {
+            var runtimeSettings = context.Settings.RuntimeSettings;
+            var packageName = runtimeSettings != null ? runtimeSettings.PackageName : "DefaultPackage";
+            var yooFolder = GetYooFolderName();
+            return $"Assets/StreamingAssets/{yooFolder}/{packageName}";
+        }
+
+        /// <summary>
+        /// 检查 BuildinCatalog.bytes 和 BuildinCatalog.json 是否都存在。
+        /// 路径已知，直接 File.Exists 检查。
+        /// </summary>
+        public ForgeCLRValidationItem Validate(ForgeCLRValidationContext context)
+        {
+            var packagePath = GetBuiltinPackagePath(context);
+
+            if (!Directory.Exists(packagePath))
+            {
+                return new ForgeCLRValidationItem(Title,
+                    $"YooAssets 内置资源目录不存在：{packagePath}，构建内置资源后会自动生成",
+                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
+            }
+
+            var hasBytes = File.Exists(Path.Combine(packagePath, "BuildinCatalog.bytes"));
+            var hasJson = File.Exists(Path.Combine(packagePath, "BuildinCatalog.json"));
+
+            if (!hasBytes && !hasJson)
+            {
+                return new ForgeCLRValidationItem(Title,
+                    $"未找到 BuildinCatalog.bytes / BuildinCatalog.json（目录：{packagePath}），YooAsset 无法初始化内置资源包",
+                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
+            }
+
+            if (!hasBytes)
+            {
+                return new ForgeCLRValidationItem(Title,
+                    $"缺少 BuildinCatalog.bytes（目录：{packagePath}），YooAsset 无法加载内置资源清单",
+                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
+            }
+
+            if (!hasJson)
+            {
+                return new ForgeCLRValidationItem(Title,
+                    $"缺少 BuildinCatalog.json（目录：{packagePath}），YooAsset 无法解析资源清单",
+                    context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
+            }
+
+            return new ForgeCLRValidationItem(Title,
+                $"YooAssets 内置资源目录完整（{packagePath}）",
+                ForgeCLRValidationStatus.Passed);
+        }
+
         public void Repair(ForgeCLRValidationContext context) { }
     }
 }
