@@ -225,6 +225,8 @@ ForgeCLR 需要同时在编辑器配置、自动检测和运行时加载路径�
 
 ## 待改进
 1. 后续可以把 YooAssets Builder 的默认构建参数也纳入快速设置建议，但仍保持最终配置由 YooAssets 自己维护。
-2. Android 真机测试仍需要结合项目实际图形 API 和启动参数确认是否使用 `-force-gles`。
-3. 文件服务器的 Windows 防火墙策略仍需由使用者在系统层允许 Unity Editor 的入站 TCP 访问。
+2. Android 真机测试仍需要结合项目实际图形 API 和启动参数确认是否使用 `-force-gles`。 通过命令行参数 去处理  C:\Users\<`UserName`>\AppData\Roaming\UnityHub\projectsInfo.json
+3. 
 4. 后续新增检测项时优先追加到 `ForgeCLRValidationUtility`，避免构建、快速设置和 Project Settings 三处逻辑分散。
+5. 检查streamingassets 中的文件 是否有中文名 特殊字符等  需改为配置项，严格模式 会报错，非严格模式 出警告
+6. 确保streamingassets 中包含 yooassets 必备的文件
