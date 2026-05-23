@@ -1,6 +1,8 @@
 [submodule "Plugins/Bridge"]
 	path = Plugins/Bridge
 	url = git@github.com:VoyageForge/Bridge.git
+	branch = main
 [submodule "Plugins/Depot"]
 	path = Plugins/Depot
 	url = git@github.com:VoyageForge/Depot.git
+	branch = main
