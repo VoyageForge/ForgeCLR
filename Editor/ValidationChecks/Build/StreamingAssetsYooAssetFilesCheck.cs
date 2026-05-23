@@ -32,33 +32,35 @@ namespace VoyageForge.ForgeCLR.Editor
             }
 
             var allFiles = Directory.GetFiles(StreamingAssetsPath, "*", SearchOption.TopDirectoryOnly);
-            var jsonFiles = allFiles.Where(f => Path.GetExtension(f).ToLowerInvariant() == ".json").ToList();
-            var hashFiles = allFiles.Where(f => Path.GetExtension(f).ToLowerInvariant() == ".hash").ToList();
+            var catalogJson = allFiles.FirstOrDefault(f => Path.GetFileName(f).StartsWith("BuildinCatalog")
+                                                          && Path.GetExtension(f).ToLowerInvariant() == ".json");
+            var catalogHash = allFiles.FirstOrDefault(f => Path.GetFileName(f).StartsWith("BuildinCatalog")
+                                                          && Path.GetExtension(f).ToLowerInvariant() == ".hash");
 
-            if (jsonFiles.Count == 0 && hashFiles.Count == 0)
+            if (catalogJson == null && catalogHash == null)
             {
                 return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 中未找到 catalog 文件（.json / .hash），YooAsset 无法初始化内置资源包",
+                    "StreamingAssets 中未找到 BuildinCatalog.json / BuildinCatalog.hash，YooAsset 无法初始化内置资源包",
                     context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
             }
 
-            if (jsonFiles.Count == 0)
+            if (catalogJson == null)
             {
                 return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 中缺少 catalog.json，YooAsset 无法解析资源清单",
+                    "StreamingAssets 中缺少 BuildinCatalog.json，YooAsset 无法解析资源清单",
                     context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
             }
 
-            if (hashFiles.Count == 0)
+            if (catalogHash == null)
             {
                 return new ForgeCLRValidationItem(Title,
-                    "StreamingAssets 中缺少 catalog.hash，YooAsset 无法校验资源清单完整性",
+                    "StreamingAssets 中缺少 BuildinCatalog.hash，YooAsset 无法校验资源清单完整性",
                     context.StrictMode ? ForgeCLRValidationStatus.Failed : ForgeCLRValidationStatus.Warning);
             }
 
             var subFiles = Directory.GetFiles(StreamingAssetsPath, "*", SearchOption.AllDirectories);
             return new ForgeCLRValidationItem(Title,
-                $"StreamingAssets 中包含 YooAsset catalog 启动文件，共 {subFiles.Length} 个文件",
+                $"StreamingAssets 中包含 BuildinCatalog 启动文件，共 {subFiles.Length} 个文件",
                 ForgeCLRValidationStatus.Passed);
         }
 
