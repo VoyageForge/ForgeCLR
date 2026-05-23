@@ -52,6 +52,11 @@ namespace VoyageForge.ForgeCLR.Editor
         [SerializeField] private bool fileServerAutoRestart;
 
         /// <summary>
+        /// StreamingAssets 文件名检查严格模式；开启后中文/特殊字符文件名报错，否则警告。
+        /// </summary>
+        [SerializeField] private bool streamingAssetsStrictMode;
+
+        /// <summary>
         /// DLL 拷贝根目录名称。
         /// </summary>
         public string DllCopyDirectoryName => NormalizeDllCopyDirectoryName(dllCopyDirectoryName);
@@ -97,6 +102,11 @@ namespace VoyageForge.ForgeCLR.Editor
         public bool FileServerAutoRestart => fileServerAutoRestart;
 
         /// <summary>
+        /// StreamingAssets 文件名检查严格模式；开启后中文/特殊字符文件名报错，否则警告。
+        /// </summary>
+        public bool StreamingAssetsStrictMode => streamingAssetsStrictMode;
+
+        /// <summary>
         /// 设置一键构建资源包时要自动填充的运行时配置资产。
         /// </summary>
         /// <param name="settings">运行时配置资产。</param>
@@ -127,6 +137,16 @@ namespace VoyageForge.ForgeCLR.Editor
             fileServerRootDirectory = rootDirectory ?? string.Empty;
             fileServerPort = Mathf.Clamp(port, 1, 65535);
             fileServerBindIPAddress = bindIPAddress?.Trim() ?? string.Empty;
+            SaveSettings();
+        }
+
+        /// <summary>
+        /// 设置 StreamingAssets 文件名检查严格模式。
+        /// </summary>
+        /// <param name="enabled">开启后中文/特殊字符文件名报错，否则警告。</param>
+        public void SetStreamingAssetsStrictMode(bool enabled)
+        {
+            streamingAssetsStrictMode = enabled;
             SaveSettings();
         }
 

@@ -50,6 +50,7 @@
             </ui:VisualElement>
             <ui:VisualElement class="fclr-section-card">
                 <ui:Label text="环境检测" class="fclr-section-title" />
+                <uie:PropertyField binding-path="streamingAssetsStrictMode" label="严格模式" class="fclr-settings-field" />
                 <ui:Label name="ValidationSummary" text="等待检测" class="fclr-validation-summary" />
                 <ui:VisualElement name="ValidationCardsContainer" class="fclr-validation-container" />
             </ui:VisualElement>

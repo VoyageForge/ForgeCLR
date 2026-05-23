@@ -41,6 +41,9 @@ namespace VoyageForge.ForgeCLR.Editor
             EnsureAssetDirectory(settings.HotUpdateDllCopyDirectory);
             EnsureAssetDirectory(settings.MetadataDllCopyDirectory);
 
+            ClearDirectory(settings.HotUpdateDllCopyDirectory);
+            ClearDirectory(settings.MetadataDllCopyDirectory);
+
             var hotUpdateNames = CollectHotUpdateAssemblyNames();
             var metadataNames = CollectAotMetadataAssemblyNames();
             var hotUpdateSourceDir = SettingsUtil.GetHotUpdateDllsOutputDirByTarget(target);
@@ -159,6 +162,23 @@ namespace VoyageForge.ForgeCLR.Editor
         /// 确保目标目录位于 Assets 下并存在。
         /// </summary>
         /// <param name="assetDirectory">Assets 相对目录。</param>
+        /// <summary>
+        /// 清空指定目录下的所有文件和子目录。
+        /// </summary>
+        /// <param name="assetDirectory">Assets 相对目录。</param>
+        private static void ClearDirectory(string assetDirectory)
+        {
+            var absolutePath = ToAbsoluteProjectPath(assetDirectory);
+            if (Directory.Exists(absolutePath) == false)
+                return;
+
+            foreach (var file in Directory.GetFiles(absolutePath))
+                File.Delete(file);
+
+            foreach (var dir in Directory.GetDirectories(absolutePath))
+                Directory.Delete(dir, true);
+        }
+
         private static void EnsureAssetDirectory(string assetDirectory)
         {
             if (string.IsNullOrWhiteSpace(assetDirectory) || assetDirectory.StartsWith("Assets/", StringComparison.Ordinal) == false)
