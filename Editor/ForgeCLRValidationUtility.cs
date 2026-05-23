@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEngine;
@@ -8,37 +10,49 @@ namespace VoyageForge.ForgeCLR.Editor
 {
     /// <summary>
     /// ForgeCLR 配置检测与自动修复入口。
-    /// 检测项由其独立的 IForgeCLRValidationCheck 实现类管理。
+    /// 通过反射扫描所有程序集中实现了 IForgeCLRValidationCheck 的类型，
+    /// 用户可在任意位置添加检测类而无需修改本文件。
     /// </summary>
     public static class ForgeCLRValidationUtility
     {
-        private static readonly List<IForgeCLRValidationCheck> Checks = new()
+        private static List<IForgeCLRValidationCheck> _checks;
+
+        /// <summary>
+        /// 通过反射扫描所有已加载程序集，发现并实例化所有 IForgeCLRValidationCheck 实现。
+        /// </summary>
+        private static List<IForgeCLRValidationCheck> Checks
         {
-            new PackagesManifestCheck(),
-            new HybridCLRSettingsCheck(),
-            new YooAssetSettingsCheck(),
-            new YooAssetsCollectorCheck(),
-            new YooAssetsRuntimeCheck(),
-            new UniTaskRuntimeCheck(),
-            new HybridCLRInstallerCheck(),
-            new RuntimeSettingsSOCheck(),
-            new YooAssetsPackageCheck(),
-            new DllCopyDirectoryNameCheck(),
-            new HotUpdateDllCopyDirectoryCheck(),
-            new MetadataDllCopyDirectoryCheck(),
-            new HotUpdateDllABCollectionCheck(),
-            new MetadataDllABCollectionCheck(),
-            new StartupSceneABCollectionCheck(),
-            new LauncherSceneCheck(),
-            new LauncherBuildSettingsCheck(),
-            new FileServerRootDirectoryCheck(),
-            new FileServerPortCheck(),
-            new AndroidGraphicsAPICheck(),
-            new HotUpdateDllDirectoryStatusCheck(),
-            new MetadataDllDirectoryStatusCheck(),
-            new StreamingAssetsFileNameCheck(),
-            new StreamingAssetsYooAssetFilesCheck(),
-        };
+            get
+            {
+                if (_checks != null)
+                    return _checks;
+
+                _checks = new List<IForgeCLRValidationCheck>();
+                var interfaceType = typeof(IForgeCLRValidationCheck);
+
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    try
+                    {
+                        foreach (var type in assembly.GetTypes())
+                        {
+                            if (type.IsAbstract || type.IsInterface)
+                                continue;
+                            if (interfaceType.IsAssignableFrom(type) == false)
+                                continue;
+                            if (Activator.CreateInstance(type) is IForgeCLRValidationCheck instance)
+                                _checks.Add(instance);
+                        }
+                    }
+                    catch (ReflectionTypeLoadException)
+                    {
+                        // 某些程序集无法加载所有类型（如缺失依赖），跳过即可
+                    }
+                }
+
+                return _checks;
+            }
+        }
 
         /// <summary>
         /// 创建当前 ForgeCLR 环境检测报告。
