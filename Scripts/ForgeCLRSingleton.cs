@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Networking;
 using VoyageForge.Bridge.Runtime;
 using VoyageForge.Depot.Runtime.Utilities;
 using YooAsset;
@@ -55,7 +57,27 @@ namespace VoyageForge.ForgeCLR.Runtime
 
                 var runtimeSettings = settings != null ? settings : ForgeCLRRuntimeSettings.LoadDefault();
 
-                var operation = new PatchOperation(runtimeSettings.PackageName, runtimeSettings.PlayMode);
+                var playMode = runtimeSettings.PlayMode;
+                if (playMode == EPlayMode.HostPlayMode && runtimeSettings.EnableAutoOfflineFallback)
+                {
+                    if (Application.internetReachability == NetworkReachability.NotReachable)
+                    {
+                        Debug.LogWarning("[ForgeCLR] 无网络连接，自动切换为离线模式");
+                        playMode = EPlayMode.OfflinePlayMode;
+                    }
+                    else
+                    {
+                        var hostServer = BridgeClient.Instance.GetBaseUrl("Assets").TrimEnd('/');
+                        var networkOk = await IsResourceServerReachableAsync(hostServer, ct);
+                        if (!networkOk)
+                        {
+                            Debug.LogWarning("[ForgeCLR] 资源服务器不可达，自动切换为离线模式");
+                            playMode = EPlayMode.OfflinePlayMode;
+                        }
+                    }
+                }
+
+                var operation = new PatchOperation(runtimeSettings.PackageName, playMode);
 
                 operation.SetBlackboardValue("ForgeCLRRuntimeConfig", runtimeSettings);
                 
@@ -101,6 +123,27 @@ namespace VoyageForge.ForgeCLR.Runtime
         private static void InitializeForgeCLR()
         {
             _ = Instance;
+        }
+
+        /// <summary>
+        /// 向资源服务器发送 HEAD 请求以检测连通性。
+        /// </summary>
+        private static async UniTask<bool> IsResourceServerReachableAsync(string hostServer, CancellationToken cancellationToken)
+        {
+            try
+            {
+                using var request = new UnityWebRequest(hostServer, UnityWebRequest.kHttpVerbHEAD);
+                request.timeout = 3;
+                var op = request.SendWebRequest();
+                await op.ToUniTask(cancellationToken: cancellationToken);
+
+                return request.result != UnityWebRequest.Result.ConnectionError;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[ForgeCLR] 资源服务器连通性探测异常: {ex.Message}");
+                return false;
+            }
         }
     }
 }

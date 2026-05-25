@@ -154,6 +154,7 @@ namespace VoyageForge.ForgeCLR.Editor
             AddPackageDropdown(packageContainer);
             AddLauncherSceneDropdown(launcherSceneContainer);
             AddRuntimeSettingsField(startupSceneContainer, "loadStartupScene", "启动后加载首场景");
+            AddRuntimeSettingsField(startupSceneContainer, "enableAutoOfflineFallback", "网络失败时自动使用离线模式");
             AddStartupSceneDropdown(startupSceneContainer);
             packageContainer?.Bind(runtimeSettingsObject);
             startupSceneContainer?.Bind(runtimeSettingsObject);

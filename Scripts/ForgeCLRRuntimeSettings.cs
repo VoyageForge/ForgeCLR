@@ -60,6 +60,12 @@ namespace VoyageForge.ForgeCLR.Runtime
         };
 
         /// <summary>
+        /// HostPlayMode 下网络请求失败时，是否自动回退到内置离线资源继续启动。
+        /// </summary>
+        [Header("Offline Fallback")]
+        [SerializeField] private bool enableAutoOfflineFallback = true;
+
+        /// <summary>
         /// 是否在热更新程序集加载完成后自动加载第一个业务场景。
         /// </summary>
         [Header("Startup Scene")]
@@ -91,6 +97,11 @@ namespace VoyageForge.ForgeCLR.Runtime
         /// 热更新程序集 DLL 地址集合。
         /// </summary>
         public string[] HotUpdateDllLocations => hotUpdateDllLocations ?? Array.Empty<string>();
+
+        /// <summary>
+        /// HostPlayMode 下网络请求失败时是否自动回退到内置离线资源。
+        /// </summary>
+        public bool EnableAutoOfflineFallback => enableAutoOfflineFallback;
 
         /// <summary>
         /// 是否在热更新启动完成后加载第一个业务场景。
