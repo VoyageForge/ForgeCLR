@@ -1,0 +1,95 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/ForgeCLR/Editor/Tools/Test.uss?fileID=7433441132597879392&amp;guid=892669100207461eb4e9dda14de557da&amp;type=3#Test" />
+    <ui:VisualElement name="body" class="html-tag-body" style="align-content: stretch;">
+        <ui:VisualElement name="auto-1" class="container html-tag-div" style="flex-direction: row; align-content: stretch;">
+            <ui:VisualElement name="auto-2" class="sidebar html-tag-div" style="align-content: stretch;">
+                <ui:VisualElement name="auto-3" class="sidebar-header html-tag-div" style="flex-direction: row; align-content: stretch;">
+                    <ui:Label name="auto-4" text="Prefab Registry" class="html-tag-h2" style="align-content: stretch;" />
+                    <ui:Button name="auto-5" text="+" class="add-btn html-tag-button" style="font-size: 13.3333px; -unity-text-align: middle-center; align-content: stretch;" />
+                </ui:VisualElement>
+                <ui:ScrollView name="categoryList" mode="VerticalAndHorizontal" class="category-list html-tag-div" style="flex-basis: 0%; flex-grow: 1; align-content: stretch;">
+                    <ui:VisualElement name="auto-6" class="category active html-tag-div" style="flex-direction: row; align-content: stretch;">
+                        <ui:Label name="auto-7" text="📁 全部预制体" class="category-name html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-left;" />
+                        <ui:Label name="auto-8" text="7" class="category-count html-tag-div" style="align-content: stretch;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-9" class="category html-tag-div" style="flex-direction: row; align-content: stretch;">
+                        <ui:Label name="auto-10" text="📁 场景建筑" class="category-name html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-left;" />
+                        <ui:Label name="auto-11" text="3" class="category-count html-tag-div" style="align-content: stretch;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-12" class="category html-tag-div" style="flex-direction: row; align-content: stretch;">
+                        <ui:Label name="auto-13" text="📁 角色" class="category-name html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-left;" />
+                        <ui:Label name="auto-14" text="2" class="category-count html-tag-div" style="align-content: stretch;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-15" class="category html-tag-div" style="flex-direction: row; align-content: stretch;">
+                        <ui:Label name="auto-16" text="📁 UI" class="category-name html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-left;" />
+                        <ui:Label name="auto-17" text="2" class="category-count html-tag-div" style="align-content: stretch;" />
+                    </ui:VisualElement>
+                </ui:ScrollView>
+                <ui:VisualElement name="auto-18" class="create-category html-tag-div" style="align-content: stretch;">
+                    <ui:Button name="auto-19" text="+ 创建分类" class="html-tag-button" style="font-size: 13.3333px; -unity-text-align: middle-center; align-content: stretch;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="auto-20" class="content html-tag-div" style="flex-basis: 0%; flex-grow: 1; align-content: stretch;">
+                <ui:VisualElement name="auto-21" class="toolbar html-tag-div" style="flex-direction: row; align-content: stretch;">
+                    <ui:Button name="auto-22" text="收集预制体" class="collect-btn html-tag-button" style="font-size: 13.3333px; -unity-text-align: middle-center; align-content: stretch;" />
+                    <ui:VisualElement name="auto-23" class="search html-tag-div" style="flex-basis: 0%; flex-grow: 1; align-content: stretch;">
+                        <ui:TextField name="searchInput" placeholder-text="搜索预制体..." class="html-tag-input" style="font-size: 13.3333px; align-content: stretch;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label name="breadcrumb" text="全部预制体" class="breadcrumb html-tag-div" style="align-content: stretch;" />
+                <ui:Label name="auto-24" text="将 Project 中的 Prefab 拖到这里收集" class="drop-zone html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                <ui:ScrollView name="prefabGrid" mode="VerticalAndHorizontal" class="prefab-grid html-tag-div" style="flex-direction: row; flex-wrap: wrap; justify-content: space-between; flex-basis: 0%; flex-grow: 1; align-content: stretch;">
+                    <ui:VisualElement name="auto-25" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-26" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-27" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-28" text="Wall_A_01" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-29" text="Building" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-30" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-31" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-32" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-33" text="Wall_A_02" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-34" text="Building" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-35" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-36" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-37" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-38" text="Door_01" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-39" text="Building" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-40" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-41" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-42" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-43" text="Hero_Player" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-44" text="Character" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-45" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-46" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-47" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-48" text="Enemy_Goblin" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-49" text="Character" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-50" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-51" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-52" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-53" text="MainMenu" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-54" text="UI" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="auto-55" class="prefab-card html-tag-div" style="align-content: stretch; flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:Label name="auto-56" text="PREFAB" class="prefab-preview html-tag-div" style="flex-direction: row; align-content: stretch; -unity-text-align: middle-center;" />
+                        <ui:VisualElement name="auto-57" class="prefab-info html-tag-div" style="align-content: stretch;">
+                            <ui:Label name="auto-58" text="InventoryPanel" class="prefab-name html-tag-div" style="align-content: stretch;" />
+                            <ui:Label name="auto-59" text="UI" class="prefab-type html-tag-div" style="align-content: stretch;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
