@@ -128,7 +128,7 @@ namespace VoyageForge.ForgeCLR.Editor
         /// 模板默认场景目录。
         /// </summary>
         private const string DefaultSceneDirectory = "Assets/Scenes";
-        
+
         /// <summary>
         /// 执行 ForgeCLR 快速设置。
         /// </summary>
@@ -161,7 +161,6 @@ namespace VoyageForge.ForgeCLR.Editor
         /// </summary>
         private static void CheckHCLRSetting()
         {
-            
         }
 
         /// <summary>
@@ -211,8 +210,10 @@ namespace VoyageForge.ForgeCLR.Editor
             var package = GetOrCreatePackage(collectorSetting, ResolvePackageName());
             var group = GetOrCreateGroup(package, ForgeCLRCollectorGroupName);
 
-            AddOrUpdateCollector(package, group, settings.HotUpdateDllCopyDirectory, nameof(PackDirectory), nameof(CollectAll));
-            AddOrUpdateCollector(package, group, settings.MetadataDllCopyDirectory, nameof(PackDirectory), nameof(CollectAll));
+            AddOrUpdateCollector(package, group, settings.HotUpdateDllCopyDirectory, nameof(PackDirectory),
+                nameof(CollectAll));
+            AddOrUpdateCollector(package, group, settings.MetadataDllCopyDirectory, nameof(PackDirectory),
+                nameof(CollectAll));
 
             var startupScenePath = ResolveStartupScenePath();
             if (string.IsNullOrWhiteSpace(startupScenePath) == false)
@@ -230,7 +231,8 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <param name="setting">YooAssets Collector 设置。</param>
         /// <param name="packageName">资源包名称。</param>
         /// <returns>资源包配置。</returns>
-        private static AssetBundleCollectorPackage GetOrCreatePackage(AssetBundleCollectorSetting setting, string packageName)
+        private static AssetBundleCollectorPackage GetOrCreatePackage(AssetBundleCollectorSetting setting,
+            string packageName)
         {
             var package = setting.Packages.FirstOrDefault(item => item.PackageName == packageName);
             if (package != null)
@@ -323,7 +325,9 @@ namespace VoyageForge.ForgeCLR.Editor
         {
             foreach (var candidateGroup in package.Groups)
             {
-                var collector = candidateGroup.Collectors.FirstOrDefault(item => NormalizeAssetPath(item.CollectPath) == collectPath);
+                var collector =
+                    candidateGroup.Collectors.FirstOrDefault(item =>
+                        NormalizeAssetPath(item.CollectPath) == collectPath);
                 if (collector != null)
                 {
                     group = candidateGroup;
@@ -365,9 +369,18 @@ namespace VoyageForge.ForgeCLR.Editor
                 return runtimeSettings.StartupSceneLocation;
             }
 
-            return AssetDatabase.LoadAssetAtPath<SceneAsset>(ForgeCLRRuntimeSettingsEditorUtility.DefaultStartupScenePath) != null
-                ? ForgeCLRRuntimeSettingsEditorUtility.DefaultStartupScenePath
-                : ForgeCLRRuntimeSettingsEditorUtility.GetAvailableStartupSceneLocations().FirstOrDefault();
+
+            var asset = AssetDatabase.LoadAssetAtPath<SceneAsset>(ForgeCLRRuntimeSettingsEditorUtility
+                .DefaultStartupScenePath);
+
+            if (asset != null)
+            {
+                return ForgeCLRRuntimeSettingsEditorUtility.DefaultStartupScenePath;
+            }
+
+            Debug.Log($"{ForgeCLRRuntimeSettingsEditorUtility.DefaultStartupScenePath} 不存在");
+
+            return ForgeCLRRuntimeSettingsEditorUtility.GetAvailableStartupSceneLocations().FirstOrDefault();
         }
 
         /// <summary>
@@ -423,7 +436,8 @@ namespace VoyageForge.ForgeCLR.Editor
                 return false;
             }
 
-            var package = collectorSetting.Packages?.FirstOrDefault(item => item.PackageName == runtimeSettings.PackageName);
+            var package =
+                collectorSetting.Packages?.FirstOrDefault(item => item.PackageName == runtimeSettings.PackageName);
             if (package == null)
             {
                 return false;
@@ -466,7 +480,8 @@ namespace VoyageForge.ForgeCLR.Editor
                 report.AppendLine($"{GetStatusText(item.Status)}：{item.Title} - {item.Message}");
             }
 
-            var message = $"ForgeCLR 环境验证\n\n{report}\n错误数量：{validationReport.FailedCount}\n警告数量：{validationReport.WarningCount}";
+            var message =
+                $"ForgeCLR 环境验证\n\n{report}\n错误数量：{validationReport.FailedCount}\n警告数量：{validationReport.WarningCount}";
             if (validationReport.FailedCount > 0)
             {
                 EditorUtility.DisplayDialog("ForgeCLR 验证失败", message, "确定");
@@ -509,7 +524,8 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <param name="title">检测项标题。</param>
         /// <param name="successMessage">成功消息。</param>
         /// <param name="errorMessage">失败消息。</param>
-        private static void AppendCheck(List<ForgeCLRValidationItem> items, bool success, string title, string successMessage, string errorMessage)
+        private static void AppendCheck(List<ForgeCLRValidationItem> items, bool success, string title,
+            string successMessage, string errorMessage)
         {
             items.Add(new ForgeCLRValidationItem(
                 title,
@@ -571,8 +587,8 @@ namespace VoyageForge.ForgeCLR.Editor
         private static bool IsValidFolderName(string value)
         {
             return string.IsNullOrWhiteSpace(value) == false &&
-                value.Contains("/") == false &&
-                value.Contains("\\") == false;
+                   value.Contains("/") == false &&
+                   value.Contains("\\") == false;
         }
 
         /// <summary>

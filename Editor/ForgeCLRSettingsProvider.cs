@@ -174,7 +174,8 @@ namespace VoyageForge.ForgeCLR.Editor
             var choices = ForgeCLRRuntimeSettingsEditorUtility.GetAvailableStartupSceneLocations().ToList();
             if (choices.Count == 0)
             {
-                choices.Add(ForgeCLRSettings.DefaultLauncherScenePath);
+                container.Add(new HelpBox("项目中未找到任何场景文件，请先创建场景。", HelpBoxMessageType.Warning));
+                return;
             }
 
             var settings = ForgeCLRSettings.instance;
@@ -292,7 +293,8 @@ namespace VoyageForge.ForgeCLR.Editor
             var choices = ForgeCLRRuntimeSettingsEditorUtility.GetAvailableStartupSceneLocations().ToList();
             if (choices.Count == 0)
             {
-                choices.Add(ForgeCLRRuntimeSettingsEditorUtility.DefaultStartupScenePath);
+                container.Add(new HelpBox("项目中未找到任何场景文件，请先创建启动场景。", HelpBoxMessageType.Warning));
+                return;
             }
 
             if (string.IsNullOrWhiteSpace(property.stringValue) == false && choices.Contains(property.stringValue) == false)
