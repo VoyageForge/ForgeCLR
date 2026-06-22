@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -48,10 +49,14 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <param name="rootElement">根元素。</param>
         public override void OnActivate(string searchContext, VisualElement rootElement)
         {
-            ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
+            var runtimeSettings = ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
+            _runtimeSettings = runtimeSettings;
             settingsObject = new SerializedObject(ForgeCLRSettings.instance);
+            runtimeSettingsObject = new SerializedObject(runtimeSettings);
             BuildUi(rootElement);
         }
+
+        private ForgeCLR.Runtime.ForgeCLRRuntimeSettings _runtimeSettings;
 
         /// <summary>
         /// 面板关闭时保存配置。
@@ -98,17 +103,15 @@ namespace VoyageForge.ForgeCLR.Editor
                 contentRoot.style.flexGrow = 1;
             }
 
+            // 模块安装区域放在最上面
+            RenderModuleBoxes(rootElement);
+
             settingsObject.Update();
             rootElement.Bind(settingsObject);
-            MakeRuntimeSettingsReferenceReadOnly(rootElement);
-            UpdateResolvedPathLabels(rootElement);
-            BindRuntimeSettingsFields(rootElement);
-            BindFileServerFields(rootElement);
-            UpdateFileServerStatusLabels(rootElement);
 
             RegisterSaveCallbacks(rootElement);
             BindActionButtons(rootElement);
-            RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
+            RenderValidationReport(rootElement, CreateFilteredValidationReport());
         }
 
         /// <summary>
@@ -326,13 +329,8 @@ namespace VoyageForge.ForgeCLR.Editor
                 field.RegisterCallback<SerializedPropertyChangeEvent>(_ =>
                 {
                     SaveSettings();
-                    UpdateResolvedPathLabels(rootElement);
-                    if (field.bindingPath == "runtimeSettings")
-                    {
-                        rootElement.schedule.Execute(() => BindRuntimeSettingsFields(rootElement));
-                    }
 
-                    RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
+                    RenderValidationReport(rootElement, CreateFilteredValidationReport());
                 });
             });
         }
@@ -341,10 +339,10 @@ namespace VoyageForge.ForgeCLR.Editor
         /// 绑定设置面板中的操作按钮。
         /// </summary>
         /// <param name="rootElement">根元素。</param>
-        private static void BindActionButtons(VisualElement rootElement)
+        private void BindActionButtons(VisualElement rootElement)
         {
             rootElement.Q<Button>("ValidateButton")?.RegisterCallback<ClickEvent>(_ =>
-                RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport()));
+                RenderValidationReport(rootElement, CreateFilteredValidationReport()));
             rootElement.Q<Button>("CopyDllButton")?.RegisterCallback<ClickEvent>(_ =>
                 CopyHotUpdateDllToFolder.Execute());
             rootElement.Q<Button>("BuildResourcesButton")?.RegisterCallback<ClickEvent>(_ =>
@@ -355,171 +353,123 @@ namespace VoyageForge.ForgeCLR.Editor
                 ForgeCLRBuildPipeline.OpenUnityBuildPanel());
             rootElement.Q<Button>("OpenFileServerWindowButton")?.RegisterCallback<ClickEvent>(_ =>
                 VoyageForgeFileServerWindow.Open());
-            rootElement.Q<Button>("StartFileServerButton")?.RegisterCallback<ClickEvent>(_ =>
-            {
-                var settings = ForgeCLRSettings.instance;
-                VoyageForgeFileServerSingleton.StartServer(settings.FileServerRootDirectory, settings.FileServerPort, settings.FileServerBindIPAddress);
-                UpdateFileServerStatusLabels(rootElement);
-                RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
-            });
-            rootElement.Q<Button>("StopFileServerButton")?.RegisterCallback<ClickEvent>(_ =>
-            {
-                VoyageForgeFileServerSingleton.StopServer(permanent: true);
-                UpdateFileServerStatusLabels(rootElement);
-                RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
-            });
+           
         }
 
         /// <summary>
-        /// 绑定局域网文件服务器 Project Settings 字段。
+        /// 渲染所有已发现模块的 Box。
+        /// 未启用的模块显示"添加模块"按钮，已启用的显示"移除模块"按钮和模块 UI。
         /// </summary>
-        /// <param name="rootElement">根元素。</param>
-        private void BindFileServerFields(VisualElement rootElement)
+        private void RenderModuleBoxes(VisualElement rootElement)
         {
-            var container = rootElement.Q<VisualElement>("FileServerFieldsContainer");
-            if (container == null)
+            if (_runtimeSettings == null)
             {
+                var warn = new HelpBox(
+                    "未找到 ForgeCLRRuntimeSettings（Resources/VoyageForge/Config/）。\n请执行\"快速设置\"创建运行时配置。",
+                    HelpBoxMessageType.Error);
+                var container = rootElement.Q<VisualElement>("ModulesContainer");
+                (container ?? rootElement).Add(warn);
                 return;
             }
 
-            container.Clear();
-            var settings = ForgeCLRSettings.instance;
+            var modules = ForgeCLRModuleDiscovery.DiscoverAll();
+            if (modules.Count == 0) return;
 
-            var rootRow = new VisualElement();
-            rootRow.AddToClassList("fclr-inline-row");
+            var editorSettings = ForgeCLRSettings.instance;
+            var modulesContainer = rootElement.Q<VisualElement>("ModulesContainer");
+            if (modulesContainer == null) return;
 
-            var rootField = new TextField("根目录") { value = settings.FileServerRootDirectory };
-            rootField.AddToClassList("fclr-inline-grow");
-            rootField.RegisterValueChangedCallback(evt =>
+            modulesContainer.Clear();
+
+            foreach (var module in modules)
             {
-                settings.SetFileServerConfig(evt.newValue, settings.FileServerPort, settings.FileServerBindIPAddress);
-                settingsObject?.Update();
-                RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
-            });
-            rootRow.Add(rootField);
+                var box = new Box();
+                box.AddToClassList("fclr-module-box");
 
-            var chooseButton = new Button(() =>
-            {
-                var selected = EditorUtility.OpenFolderPanel("选择 VoyageForge 文件服务器根目录", settings.FileServerRootDirectory, string.Empty);
-                if (string.IsNullOrWhiteSpace(selected))
+                var installed = module.IsInstalled(_runtimeSettings);
+                var active = module.IsEnabled(_runtimeSettings);
+
+                // 标题行：模块名 + 安装/卸载按钮
+                var header = new VisualElement { style = { flexDirection = FlexDirection.Row, justifyContent = Justify.SpaceBetween } };
+                var status = !installed ? "(未安装)" : (active ? "(已启用)" : "(已禁用)");
+                header.Add(new Label($"{module.DisplayName} {status}") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
+
+                if (!installed)
                 {
-                    return;
+                    var addBtn = new Button(() =>
+                    {
+                        try { module.Enable(_runtimeSettings, editorSettings); BuildUi(rootElement); }
+                        catch (Exception ex) { Debug.LogError($"[ForgeCLR] 安装失败：{module.DisplayName}，{ex.Message}"); }
+                    }) { text = "安装模块" };
+                    header.Add(addBtn);
+                }
+                else
+                {
+                    var removeBtn = new Button(() =>
+                    {
+                        try { module.Disable(_runtimeSettings, editorSettings); BuildUi(rootElement); }
+                        catch (Exception ex) { Debug.LogError($"[ForgeCLR] 卸载失败：{module.DisplayName}，{ex.Message}"); }
+                    }) { text = "卸载模块" };
+                    removeBtn.AddToClassList("fclr-remove-button");
+                    header.Add(removeBtn);
+                }
+                box.Add(header);
+
+                // 已安装时显示启用/禁用开关和（可选）配置 UI
+                if (installed)
+                {
+                    var toggle = new Toggle("启用此模块") { value = active };
+                    toggle.RegisterValueChangedCallback(evt =>
+                    {
+                        try
+                        {
+                            var prop = module.RuntimeConfigType.GetProperty("Enabled");
+                            var method = typeof(ForgeCLR.Runtime.ForgeCLRRuntimeSettings)
+                                .GetMethod("GetModuleConfig")!.MakeGenericMethod(module.RuntimeConfigType);
+                            var config = method.Invoke(_runtimeSettings, null) as UnityEngine.ScriptableObject;
+                            if (config != null && prop != null)
+                            {
+                                prop.SetValue(config, evt.newValue);
+                                UnityEditor.EditorUtility.SetDirty(config);
+                                UnityEditor.EditorUtility.SetDirty(_runtimeSettings);
+                                UnityEditor.AssetDatabase.SaveAssets();
+                            }
+                        }
+                        catch (Exception ex) { Debug.LogError($"[ForgeCLR] 切换启用状态失败：{ex.Message}"); }
+                        BuildUi(rootElement);
+                    });
+                    box.Add(toggle);
+
+                    if (active)
+                        box.Add(module.CreateModuleUI(_runtimeSettings, editorSettings));
                 }
 
-                settings.SetFileServerConfig(selected, settings.FileServerPort, settings.FileServerBindIPAddress);
-                BindFileServerFields(rootElement);
-                RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
-            })
-            {
-                text = "选择"
-            };
-            chooseButton.AddToClassList("fclr-small-button");
-            rootRow.Add(chooseButton);
-            container.Add(rootRow);
-
-            var portRow = new VisualElement();
-            portRow.AddToClassList("fclr-inline-row");
-            var portField = new IntegerField("端口") { value = settings.FileServerPort };
-            portField.AddToClassList("fclr-inline-grow");
-            portField.RegisterValueChangedCallback(evt =>
-            {
-                settings.SetFileServerConfig(settings.FileServerRootDirectory, evt.newValue, settings.FileServerBindIPAddress);
-                settingsObject?.Update();
-                RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
-            });
-            portRow.Add(portField);
-
-            var portButton = new Button(() =>
-            {
-                var port = VoyageForgeFileServer.FindAvailablePort(settings.FileServerPort);
-                if (port > 0)
-                {
-                    settings.SetFileServerConfig(settings.FileServerRootDirectory, port, settings.FileServerBindIPAddress);
-                    BindFileServerFields(rootElement);
-                    RenderValidationReport(rootElement, ForgeCLRQuickSetup.CreateValidationReport());
-                }
-            })
-            {
-                text = "自动端口"
-            };
-            portButton.AddToClassList("fclr-small-button");
-            portRow.Add(portButton);
-            container.Add(portRow);
-
-            AddFileServerIpDropdown(container, rootElement);
-
-            var autoRestart = new Toggle("域重载后自动恢复") { value = settings.FileServerAutoRestart };
-            autoRestart.AddToClassList("fclr-settings-field");
-            autoRestart.RegisterValueChangedCallback(evt =>
-            {
-                settings.SetFileServerAutoRestart(evt.newValue);
-                settingsObject?.Update();
-            });
-            container.Add(autoRestart);
+                modulesContainer.Add(box);
+            }
         }
 
         /// <summary>
-        /// 添加文件服务器绑定 IP 下拉框。
+        /// 创建校验报告：只包含已启用模块的检测项。
+        /// 未安装或已禁用的模块的检测项不会被调用。
         /// </summary>
-        /// <param name="container">字段容器。</param>
-        /// <param name="rootElement">根元素。</param>
-        private void AddFileServerIpDropdown(VisualElement container, VisualElement rootElement)
+        private ForgeCLRValidationReport CreateFilteredValidationReport()
         {
-            var settings = ForgeCLRSettings.instance;
-            var options = new List<KeyValuePair<string, string>>
-            {
-                new KeyValuePair<string, string>("0.0.0.0 - 监听所有网卡，推荐", string.Empty)
-            };
+            var items = new List<ForgeCLRValidationItem>();
+            var context = new ForgeCLRValidationContext(ForgeCLRSettings.instance);
 
-            options.AddRange(VoyageForgeFileServer.GetAllLocalIPv4().Select(info =>
+            if (_runtimeSettings != null)
             {
-                var tag = info.IsVirtualLike ? "疑似虚拟网卡" : "推荐";
-                return new KeyValuePair<string, string>(
-                    $"{info.Address} - {info.Name} - {info.NetworkType} - {tag}",
-                    info.Address);
-            }));
-
-            var choices = options.Select(option => option.Key).ToList();
-            var currentOption = options.FirstOrDefault(option => option.Value == settings.FileServerBindIPAddress);
-            var currentValue = string.IsNullOrWhiteSpace(currentOption.Key) ? choices[0] : currentOption.Key;
-
-            var dropdown = new PopupField<string>("绑定 IP", choices, currentValue);
-            dropdown.AddToClassList("fclr-settings-field");
-            dropdown.RegisterValueChangedCallback(evt =>
-            {
-                var option = options.FirstOrDefault(candidate => candidate.Key == evt.newValue);
-                settings.SetFileServerConfig(settings.FileServerRootDirectory, settings.FileServerPort, option.Value ?? string.Empty);
-                settingsObject?.Update();
-                UpdateFileServerStatusLabels(rootElement);
-            });
-            container.Add(dropdown);
-        }
-
-        /// <summary>
-        /// 更新文件服务器状态展示。
-        /// </summary>
-        /// <param name="rootElement">根元素。</param>
-        private static void UpdateFileServerStatusLabels(VisualElement rootElement)
-        {
-            var server = VoyageForgeFileServerSingleton.Server;
-            var settings = ForgeCLRSettings.instance;
-            var running = server != null && server.IsRunning;
-            var statusLabel = rootElement.Q<Label>("FileServerStatusLabel");
-            if (statusLabel != null)
-            {
-                statusLabel.text = running
-                    ? $"运行中：{server.RootDirectory}"
-                    : $"未启动：{settings.FileServerRootDirectory}";
+                foreach (var module in ForgeCLRModuleDiscovery.DiscoverAll())
+                {
+                    if (module.IsEnabled(_runtimeSettings))
+                    {
+                        var checks = module.CreateValidationChecks(_runtimeSettings);
+                        items.AddRange(checks.Select(c => c.Validate(context)));
+                    }
+                }
             }
 
-            var urlLabel = rootElement.Q<Label>("FileServerUrlLabel");
-            if (urlLabel != null)
-            {
-                var ip = string.IsNullOrWhiteSpace(settings.FileServerBindIPAddress)
-                    ? VoyageForgeFileServer.GetRecommendedLocalIPv4()
-                    : settings.FileServerBindIPAddress;
-                urlLabel.text = running ? $"访问地址：{server.ServerUrl}" : $"预计访问地址：http://{ip}:{settings.FileServerPort}/";
-            }
+            return new ForgeCLRValidationReport(items);
         }
 
         /// <summary>

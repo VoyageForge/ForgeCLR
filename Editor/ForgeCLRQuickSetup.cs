@@ -152,6 +152,9 @@ namespace VoyageForge.ForgeCLR.Editor
             settings.SaveSettings();
             AssetDatabase.Refresh();
 
+            // 启用默认模块并执行模块级快速设置
+            EnsureDefaultModulesEnabled(settings);
+
             EditorUtility.DisplayDialog("ForgeCLR 快速设置", "目录和 Project Settings 配置已准备完成。", "确定");
             Debug.Log("[ForgeCLR] 快速设置完成。");
         }
@@ -161,6 +164,33 @@ namespace VoyageForge.ForgeCLR.Editor
         /// </summary>
         private static void CheckHCLRSetting()
         {
+        }
+
+        /// <summary>
+        /// 确保默认模块已启用并执行各自的快速设置。
+        /// </summary>
+        private static void EnsureDefaultModulesEnabled(ForgeCLRSettings settings)
+        {
+            var modules = ForgeCLRModuleDiscovery.DiscoverAll();
+            var rs = ForgeCLRRuntimeSettingsEditorUtility.EnsureRuntimeSettingsAsset();
+
+            foreach (var module in modules)
+            {
+                try
+                {
+                    if (!module.IsEnabled(rs))
+                    {
+                        module.Enable(rs, settings);
+                        Debug.Log($"[ForgeCLR] 已启用模块：{module.DisplayName}");
+                    }
+
+                    module.ExecuteQuickSetup(rs, settings);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[ForgeCLR] 模块 '{module.DisplayName}' 快速设置失败：{ex.Message}");
+                }
+            }
         }
 
         /// <summary>

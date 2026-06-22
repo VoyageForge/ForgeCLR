@@ -54,26 +54,21 @@ namespace VoyageForge.ForgeCLR.Editor
         /// <returns>运行时配置资产。</returns>
         public static ForgeCLRRuntimeSettings EnsureRuntimeSettingsAsset()
         {
-            var editorSettings = ForgeCLRSettings.instance;
-            if (editorSettings.RuntimeSettings != null)
-                return editorSettings.RuntimeSettings;
-
+            // 直接从磁盘查找，不经过 ForgeCLRSettings.RuntimeSettings（避免循环调用）
             var runtimeSettings = FindRuntimeSettingsAsset();
-            if (runtimeSettings == null)
-            {
-                if (Directory.Exists(RuntimeSettingsDirectory) == false)
-                {
-                    Directory.CreateDirectory(RuntimeSettingsDirectory);
-                    AssetDatabase.Refresh();
-                }
+            if (runtimeSettings != null)
+                return runtimeSettings;
 
-                runtimeSettings = ScriptableObject.CreateInstance<ForgeCLRRuntimeSettings>();
-                AssetDatabase.CreateAsset(runtimeSettings, RuntimeSettingsPath);
-                AssetDatabase.SaveAssets();
-                Debug.Log($"[ForgeCLR] 已创建运行时配置：{RuntimeSettingsPath}");
+            if (Directory.Exists(RuntimeSettingsDirectory) == false)
+            {
+                Directory.CreateDirectory(RuntimeSettingsDirectory);
+                AssetDatabase.Refresh();
             }
 
-            editorSettings.SetRuntimeSettings(runtimeSettings);
+            runtimeSettings = ScriptableObject.CreateInstance<ForgeCLRRuntimeSettings>();
+            AssetDatabase.CreateAsset(runtimeSettings, RuntimeSettingsPath);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[ForgeCLR] 已创建运行时配置：{RuntimeSettingsPath}");
             return runtimeSettings;
         }
 

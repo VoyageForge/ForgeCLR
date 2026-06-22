@@ -4,40 +4,7 @@
         <ui:VisualElement name="Root" class="fclr-settings-root" style="max-width: none;">
             <ui:Label text="ForgeCLR" class="fclr-page-title" />
             <ui:TextElement text="集中维护运行时配置 SO 和 DLL 拷贝目录，并提供常用构建操作入口。" class="fclr-summary-text" />
-            <ui:VisualElement class="fclr-section-card">
-                <ui:Label text="运行时配置" class="fclr-section-title" />
-                <uie:PropertyField name="RuntimeSettingsField" binding-path="runtimeSettings" label="运行时配置 SO" class="fclr-settings-field" />
-                <ui:VisualElement class="fclr-sub-section">
-                    <ui:Label text="YooAssets 包" class="fclr-path-title" />
-                    <ui:VisualElement name="PackageFieldsContainer" class="fclr-package-container" />
-                </ui:VisualElement>
-                <ui:VisualElement class="fclr-sub-section">
-                    <ui:Label text="Launcher 场景" class="fclr-path-title" />
-                    <ui:VisualElement name="LauncherSceneFieldsContainer" class="fclr-startup-scene-container" />
-                </ui:VisualElement>
-                <ui:VisualElement class="fclr-sub-section">
-                    <ui:Label text="启动场景" class="fclr-path-title" />
-                    <ui:VisualElement name="StartupSceneFieldsContainer" class="fclr-startup-scene-container" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:VisualElement class="fclr-section-card">
-                <ui:Label text="DLL 拷贝" class="fclr-section-title" />
-                <uie:PropertyField binding-path="dllCopyDirectoryName" label="DLL 拷贝根目录名" class="fclr-settings-field" />
-                <ui:Label text="最终路径" class="fclr-path-title" />
-                <ui:Label name="HotUpdateDllCopyPathLabel" class="fclr-path-label" />
-                <ui:Label name="MetadataDllCopyPathLabel" class="fclr-path-label" />
-            </ui:VisualElement>
-            <ui:VisualElement class="fclr-section-card">
-                <ui:Label text="局域网文件服务器" class="fclr-section-title" />
-                <ui:VisualElement name="FileServerFieldsContainer" class="fclr-file-server-container" />
-                <ui:VisualElement class="fclr-button-row">
-                    <ui:Button name="StartFileServerButton" text="启动服务器" class="fclr-primary-button" />
-                    <ui:Button name="StopFileServerButton" text="停止服务器" class="fclr-secondary-button" />
-                    <ui:Button name="OpenFileServerWindowButton" text="打开独立窗口" class="fclr-secondary-button" />
-                </ui:VisualElement>
-                <ui:Label name="FileServerStatusLabel" class="fclr-path-label" />
-                <ui:Label name="FileServerUrlLabel" class="fclr-path-label" />
-            </ui:VisualElement>
+            <ui:VisualElement name="ModulesContainer" class="fclr-modules-container" />
             <ui:VisualElement class="fclr-section-card">
                 <ui:Label text="操作" class="fclr-section-title" />
                 <ui:VisualElement class="fclr-button-row">
