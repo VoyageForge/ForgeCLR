@@ -5,7 +5,7 @@
 [submodule "Plugins/Depot"]
 	path = Plugins/Depot
 	url = git@github.com:VoyageForge/Depot.git
-	branch = dev
+	branch = main
 [submodule "Plugins/UIKit"]
 	path = Plugins/UIKit
 	url = git@github.com:VoyageForge/UIKit.git
